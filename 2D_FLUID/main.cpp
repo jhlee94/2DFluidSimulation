@@ -19,7 +19,6 @@ sf::Font* main_font;
 
 int mouseX0 = 0, mouseY0 = 0;
 
-
 // FluidSolver
 Fluid2DCPU* fluid_solver;
 Vector2F* particles = NULL;
@@ -42,7 +41,7 @@ int main()
 	sf::RenderWindow app_window(sf::VideoMode(WIDTH, HEIGHT), "2D Fluid Simulator", sf::Style::Default, settings);
 	//app_window.setVerticalSyncEnabled(true);
 	main_font = new sf::Font;
-	main_font->loadFromFile("./Resources/arial.ttf");
+	main_font->loadFromFile("../Resources/arial.ttf");
 	fluid_solver = new Fluid2DCPU(TILE_DIM);
 	// Create an SFGUI. This is required before doing anything with SFGUI.
 	sfg::SFGUI sfgui;
