@@ -379,5 +379,9 @@ c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\vector_functions
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\device_launch_parameters.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\vector_types.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include\cuda_runtime.h
+D:\Apps\Microsoft Visual Studio 12.0\VC\include\stdio.h
+D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+D:\Apps\Microsoft Visual Studio 12.0\VC\include\swprintf.inl
 d:\work\stage 3\dissertation\program\2dcuda\Fluid_Kernels.cuh
 d:\work\stage 3\dissertation\program\2dcuda\config.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include\device_launch_parameters.h

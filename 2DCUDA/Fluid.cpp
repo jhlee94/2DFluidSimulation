@@ -1,7 +1,9 @@
+#pragma once
 // OpenGL 
 #include <GL/glew.h>
 // Includes
 #include <string.h>
+#include <iostream>
 
 // CUDA standard includes
 #include <cuda_runtime.h>
@@ -17,6 +19,7 @@
 #include "Fluid_Kernels.h"
 
 // Global Variable Init
+int size;
 //velocity and pressure
 float *u, *v, *p;
 float *uold, *vold, *pold;
@@ -39,18 +42,20 @@ sf::Font* main_font;
 int mouseX0 = -10, mouseY0 = -10;
 
 // Cuda Kernels
-extern "C" void add_source(float *d, float *s);
-extern "C" void advect(float *dold, float *d, float *u, float *v, float md);
-extern "C" void divergence(float *u, float *v, float *div);
-extern "C" void pressure(float *u, float *v, float *p, float *pold, float *div);
-extern "C" void set_bnd(float *u, float *v, float *p);
-extern "C" void velocity_bc(float *u, float *v);
-extern "C" void pressure_bc(float *p);
+extern "C" void add_source(float *d, float *s, int size);
+extern "C" void advect(float *dold, float *d, float *u, float *v, float md, int size);
+extern "C" void divergence(float *u, float *v, float *div, int size);
+extern "C" void pressure(float *u, float *v, float *p, float *pold, float *div, int size);
+extern "C" void set_bnd(float *u, float *v, float *p, int size);
+extern "C" void velocity_bc(float *u, float *v, int size);
+extern "C" void pressure_bc(float *p, int size);
 
 // Graphics Functions
 void DrawGrid(bool);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
+
+void step(float *d_h, float *u_h, float *v_h);
 
 int main(void)
 {
@@ -64,7 +69,41 @@ int main(void)
 	main_font->loadFromFile("../Resources/arial.ttf");
 
 	app_window.setActive();
+	
 
+	// Initialise CUDA requirements
+	ddim.width = DIM;
+	ddim.height = DIM;
+	ddim.timestep = 0.01f;
+	size = ddim.width * ddim.height;
+
+	std::cout << size << std::endl;
+	std::cout << TILE_SIZE_X << std::endl;
+	//
+	// Allocate memory for most arrays
+	//
+	cudaMalloc((void**)&divg, size * sizeof(float));
+	cudaMalloc((void**)&d, size * sizeof(float));
+	cudaMalloc((void**)&dold, size * sizeof(float));
+	cudaMalloc((void**)&u, size * sizeof(float));
+	cudaMalloc((void**)&uold, size * sizeof(float));
+	cudaMalloc((void**)&v, size * sizeof(float));
+	cudaMalloc((void**)&vold, size * sizeof(float));
+	cudaMalloc((void**)&p, size * sizeof(float));
+	cudaMalloc((void**)&pold, size * sizeof(float));
+
+	// Initialize our "previous" values of density and velocity to be all zero
+	cudaMemset(uold, 0, size * sizeof(float));
+	cudaMemset(vold, 1, size * sizeof(float));
+	cudaMemset(dold, 100, size * sizeof(float));
+
+	// Initialise Sources
+	sd = new float[size];
+	su = new float[size];
+	sv = new float[size];
+
+
+	
 	// Init GLEW functions
 	glewInit();
 	// GL_Display Init
@@ -106,7 +145,6 @@ int main(void)
 			else {
 				if (event.type == sf::Event::MouseButtonPressed)
 				{
-
 					int i = (event.mouseButton.x / static_cast<float>(WIDTH)) * DIM + 1;
 					int j = (event.mouseButton.y / static_cast<float>(HEIGHT)) * DIM + 1;
 				}
@@ -135,6 +173,7 @@ int main(void)
 			
 		}
 
+		step(sd, su, sv);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//// Particles
@@ -143,10 +182,31 @@ int main(void)
 		//glPopMatrix();
 
 		// Render Density
-		
+		for (int i = 0; i < DIM; i++) {
+			for (int j = 0; j < DIM; j++) {
+				int cell_idx = i + DIM * j;
+
+				float density = sd[cell_idx];
+				float color;
+				if (density > 0)
+				{
+					//color = std::fmod(density, 100.f) / 100.f;
+					glPushMatrix();
+					glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
+					glBegin(GL_QUADS);
+					glColor3f(1.f, 1.f, 1.f);
+					glVertex2f(0.f, TILE_SIZE_Y);
+					glVertex2f(0.f, 0.f);
+					glVertex2f(TILE_SIZE_X, 0.f);
+					glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
+					glEnd();
+					glPopMatrix();
+				}
+			}
+		}
 
 		// Grid Lines 
-		DrawGrid(true);
+		DrawGrid(false);
 
 		// SFML rendering.
 		// Draw FPS Text
@@ -164,7 +224,17 @@ int main(void)
 	}
 
 	// cleanup
+	cudaFree(divg);
+	cudaFree(d);
+	cudaFree(dold);
+	cudaFree(u);
+	cudaFree(uold);
+	cudaFree(v);
+	cudaFree(vold);
+	cudaFree(p);
+	cudaFree(pold);
 	delete main_font;
+	delete[] sd, sv, su;
 	return 0;
 }
 
@@ -225,4 +295,59 @@ void CalculateFPS()
 		//  Reset frame count
 		frame_count = 0;
 	}
+}
+
+void step(float *d_h, float *u_h, float *v_h)
+{
+	//advect horizontal and vertical velocity components
+	advect(uold, u, uold, vold, 1, size);
+	advect(vold, v, uold, vold, 1, size);
+	cudaDeviceSynchronize();
+	//advect density
+	advect(dold, d, u, v, 0.995, size);
+	cudaDeviceSynchronize();
+	//call kernel to compute boundary values and enforce boundary conditions
+	velocity_bc(u, v, size);
+	cudaDeviceSynchronize();
+	//call kernel to compute the divergence (div)
+	divergence(u, v, divg, size);
+	cudaDeviceSynchronize();
+	//reset pressure to 0 <- This is our initial guess to the Jacobi solver
+	cudaMemset(p, 0, size * sizeof(float));
+
+	//for each Jacobi solver iteration, 80 tends to be enough iterations to get convergence or close enough
+	for (int i = 0; i < 50; ++i)
+	{
+		//call kernel to compute pressure
+		pressure(u, v, p, pold, divg, size);
+
+		//swap old and new arrays for next iteration
+		ptemp = pold; pold = p; p = ptemp;
+
+		//call kernel to compute boundary values and enforce boundary conditions
+		pressure_bc(p, size);
+	}
+
+	//call kernel to correct velocity
+	set_bnd(u, v, p, size);
+
+	//call kernel to compute boundary values and enforce boundary conditions
+	velocity_bc(u, v, size);
+
+	//copy density image back to host and synchronize
+	//cudaMemcpy(map, d, size * sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(d_h, d, size * sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(u_h, u, size * sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(v_h, v, size * sizeof(float), cudaMemcpyDeviceToHost);
+	cudaDeviceSynchronize();
+	/*************************************************
+	*                                               *
+	*    Write to Image Here, Or Anywhere Really    *
+	*                                               *
+	************************************************/
+
+	//swap old and new arrays for next iteration
+	utemp = uold; uold = u; u = utemp;
+	vtemp = vold; vold = v; v = vtemp;
+	dtemp = dold; dold = d; d = dtemp;
 }

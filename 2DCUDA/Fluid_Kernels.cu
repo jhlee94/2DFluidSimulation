@@ -1,9 +1,11 @@
+#pragma once
 #include <cuda_runtime.h>
-
+#include <stdio.h>
 #include "Fluid_Kernels.cuh"
+#include "device_launch_parameters.h"
 
 
-__global__ void add_source_k(float *d, float *s) {
+__global__ void add_source_K(float *d, float *s) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int width = ddim.width;
 	int height = ddim.height;
@@ -18,7 +20,7 @@ __global__ void add_source_k(float *d, float *s) {
 	}
 }
 
-__global__ void advect_k(float *dold, float *d, float *u, float *v, float md) {
+__global__ void advect_K(float *dold, float *d, float *u, float *v, float md) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int width = ddim.width;
 	int height = ddim.height;
@@ -54,7 +56,7 @@ __global__ void advect_k(float *dold, float *d, float *u, float *v, float md) {
 	return;
 }
 
-__global__ void divergence_k(float *u, float *v, float *div) {
+__global__ void divergence_K(float *u, float *v, float *div) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int width = ddim.width;
 	int height = ddim.height;
@@ -75,7 +77,7 @@ __global__ void divergence_k(float *u, float *v, float *div) {
 	}
 }
 
-__global__ void pressure_k(float *u, float *v, float *p, float *pold, float *div) {
+__global__ void pressure_K(float *u, float *v, float *p, float *pold, float *div) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int width = ddim.width;
 	int height = ddim.height;
@@ -97,7 +99,7 @@ __global__ void pressure_k(float *u, float *v, float *p, float *pold, float *div
 	}
 }
 
-__global__ void set_bnd_k(float *u, float *v, float *p) {
+__global__ void set_bnd_K(float *u, float *v, float *p) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int width = ddim.width;
 	int height = ddim.height;
@@ -119,7 +121,7 @@ __global__ void set_bnd_k(float *u, float *v, float *p) {
 	}
 }
 
-__global__ void velocity_bc_k(float *u, float *v) {
+__global__ void velocity_bc_K(float *u, float *v) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int width = ddim.width;
 	int height = ddim.height;
@@ -149,7 +151,7 @@ __global__ void velocity_bc_k(float *u, float *v) {
 	}
 }
 
-__global__ void pressure_bc_k(float *p) {
+__global__ void pressure_bc_K(float *p) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int width = ddim.width;
 	int height = ddim.height;
@@ -176,43 +178,50 @@ __global__ void pressure_bc_k(float *p) {
 }
 
 extern "C" 
-void add_source(float *d, float *s)
+void add_source(float *d, float *s, int size)
 {
-	
+	int blocks = size / THREADS_PER_BLOCK;
+	add_source_K <<<blocks, THREADS_PER_BLOCK >>>(d, s);
 }
 
 extern "C" 
-void advect(float *dold, float *d, float *u, float *v, float md)
+void advect(float *dold, float *d, float *u, float *v, float md, int size)
 {
-
+	int blocks = size / THREADS_PER_BLOCK;
+	advect_K <<<blocks, THREADS_PER_BLOCK >>> (dold, d, u, v, md);
 }
 
 extern "C" 
-void divergence(float *u, float *v, float *div)
+void divergence(float *u, float *v, float *div, int size)
 {
-
+	int blocks = size / THREADS_PER_BLOCK;
+	divergence_K<<<blocks,THREADS_PER_BLOCK>>>(u, v, div);
 }
 
 extern "C" 
-void pressure(float *u, float *v, float *p, float *pold, float *div)
+void pressure(float *u, float *v, float *p, float *pold, float *div, int size)
 {
-
+	int blocks = size / THREADS_PER_BLOCK;
+	pressure_K <<<blocks, THREADS_PER_BLOCK >>>(u, v, p, pold, div);
 }
 
 extern "C" 
-void set_bnd(float *u, float *v, float *p)
+void set_bnd(float *u, float *v, float *p, int size)
 {
-
+	int blocks = size / THREADS_PER_BLOCK;
+	set_bnd_K<<<blocks,THREADS_PER_BLOCK>>>(u, v, p);
 }
 
 extern "C" 
-void velocity_bc(float *u, float *v)
+void velocity_bc(float *u, float *v, int size)
 {
-
+	int blocks = size / THREADS_PER_BLOCK;
+	velocity_bc_K<<<blocks,THREADS_PER_BLOCK>>>(u, v);
 }
 
-extern "C" 
-void pressure_bc(float *p)
+extern "C"
+void pressure_bc(float *p, int size)
 {
-
+	int blocks = size / THREADS_PER_BLOCK;
+	pressure_bc_K <<<blocks, THREADS_PER_BLOCK >>>(p);
 }

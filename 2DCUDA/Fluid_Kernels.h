@@ -13,12 +13,12 @@ typedef struct {
 
 __constant__ Dimensions ddim;
 
-__global__ void add_source_k(float *d, float *s);
-__global__ void advect_k(float *dold, float *d, float *u, float *v, float md);
-__global__ void divergence_k(float *u, float *v, float *div);
-__global__ void pressure_k(float *u, float *v, float *p, float *pold, float *div);
-__global__ void set_bnd_k(float *u, float *v, float *p);
-__global__ void velocity_bc_k(float *u, float *v);
-__global__ void pressure_bc_k(float *p);
+__global__ void add_source_K(float *d, float *s);
+__global__ void advect_K(float *dold, float *d, float *u, float *v, float md);
+__global__ void divergence_K(float *u, float *v, float *div);
+__global__ void pressure_K(float *u, float *v, float *p, float *pold, float *div);
+__global__ void set_bnd_K(float *u, float *v, float *p);
+__global__ void velocity_bc_K(float *u, float *v);
+__global__ void pressure_bc_K(float *p);
 
 #endif
