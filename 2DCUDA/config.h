@@ -1,6 +1,6 @@
-#define WIDTH 1536 // Window width
-#define HEIGHT 1536 // Window height
-#define DIM 512 // Grid Dimension
+#define WIDTH 512 // Window width
+#define HEIGHT 512 // Window height
+#define DIM 256 // Grid Dimension
 #define DS (DIM * DIM)
 
 #define TILEX 64 // Tile Width

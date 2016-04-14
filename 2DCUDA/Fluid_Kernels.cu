@@ -1,7 +1,21 @@
 #include <cuda_runtime.h>
-
+#include "device_launch_parameters.h"
 #include "Fluid_Kernels.cuh"
 
+//velocity and pressure
+float *u, *v, *p;
+float *uold, *vold, *pold;
+float *utemp, *vtemp, *ptemp; // temp pointers, DO NOT INITIALIZE
+
+//divergence of velocity
+float *divg;
+
+//density
+float *d, *dold, *dtemp;
+float *map;
+
+//sources
+float *sd, *su, *sv;
 
 __global__ void add_source_k(float *d, float *s) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -75,28 +89,6 @@ __global__ void divergence_k(float *u, float *v, float *div) {
 	}
 }
 
-__global__ void pressure_k(float *u, float *v, float *p, float *pold, float *div) {
-	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	int width = ddim.width;
-	int height = ddim.height;
-	int px = i % width;
-	int py = i / width;
-
-	// Skip Boundary values
-	if (px > 0 && py > 0 && px < width - 1 && py < height - 1)
-	{
-		// left, right, top, bottom neighbors
-		float x_l = p[i - 1];
-		float x_r = p[i + 1];
-		float x_t = p[px + (py - 1)*width];
-		float x_b = p[px + (py + 1)*width];
-		float b = div[i];
-
-		// Jacobi method for solving the pressure Poisson equation
-		pold[i] = (x_l + x_r + x_t + x_b + b) * 0.25; // Here b is positive because of the extra negative sign in the divergence calculation
-	}
-}
-
 __global__ void set_bnd_k(float *u, float *v, float *p) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int width = ddim.width;
@@ -119,66 +111,13 @@ __global__ void set_bnd_k(float *u, float *v, float *p) {
 	}
 }
 
-__global__ void velocity_bc_k(float *u, float *v) {
-	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	int width = ddim.width;
-	int height = ddim.height;
-	int px = i % width;
-	int py = i / width;
-
-	// Skip Inner Values
-	if (px == 0)
-	{
-		u[i] = -u[i + 1];
-		v[i] = v[i + 1];
-	}
-	else if (py == 0)
-	{
-		u[i] = u[px + (py + 1)*width];
-		v[i] = -v[px + (py + 1)*width];
-	}
-	else if (px == width - 1)
-	{
-		u[i] = -u[i - 1];
-		v[i] = v[i - 1];
-	}
-	else if (py == height - 1)
-	{
-		u[i] = u[px + (py - 1)*width];
-		v[i] = -v[px + (py - 1)*width];
-	}
-}
-
-__global__ void pressure_bc_k(float *p) {
-	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	int width = ddim.width;
-	int height = ddim.height;
-	int px = i % width;
-	int py = i / width;
-
-	// Skip Inner Values
-	if (px == 0)
-	{
-		p[i] = p[i + 1];
-	}
-	else if (py == 0)
-	{
-		p[i] = p[px + (py + 1)*width];
-	}
-	else if (px == width - 1)
-	{
-		p[i] = p[i - 1];
-	}
-	else if (py == height - 1)
-	{
-		p[i] = p[px + (py - 1)*width];
-	}
-}
-
 extern "C" 
 void add_source(float *d, float *s)
 {
-	
+	dim3 blocks;
+	dim3 tids(TIDSX, TIDSY);
+
+	add_source_k <<<blocks, tids >>>(d, s);
 }
 
 extern "C" 
@@ -215,4 +154,10 @@ extern "C"
 void pressure_bc(float *p)
 {
 
+}
+
+int main()
+{
+
+	return 0;
 }

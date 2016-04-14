@@ -1,18 +1,18 @@
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include\cuda_runtime.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\host_config.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\sal.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\ConcurrencySal.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\vadefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\sal.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\ConcurrencySal.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\vadefs.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\builtin_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\device_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\host_defines.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\driver_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\host_defines.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\limits.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\stddef.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\limits.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\stddef.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\surface_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\driver_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\texture_types.h
@@ -77,12 +77,12 @@ c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\surface_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\texture_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\vector_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\host_defines.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\string.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\time.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\wtime.inl
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\time.inl
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\string.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\time.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\wtime.inl
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\time.inl
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\math_functions.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\builtin_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\device_types.h
@@ -91,19 +91,19 @@ c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\surface_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\texture_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\vector_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\host_defines.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\math.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\stdlib.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\cmath
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\yvals.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\xkeycheck.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\use_ansi.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\math.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\xtgmath.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\xtr1common
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\cstdlib
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\math.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\stdlib.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\cmath
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\yvals.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xkeycheck.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\use_ansi.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\math.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xtgmath.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xtr1common
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\cstdlib
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\math_functions.hpp
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\builtin_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\device_types.h
@@ -380,6 +380,6 @@ c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\device_launch_pa
 c:\program files\nvidia gpu computing toolkit\cuda\v7.5\include\vector_types.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include\cuda_runtime.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include\device_launch_parameters.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\stdio.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
-D:\Apps\Microsoft Visual Studio 12.0\VC\include\swprintf.inl
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\stdio.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\swprintf.inl

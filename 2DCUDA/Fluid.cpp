@@ -52,121 +52,121 @@ void DrawGrid(bool);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
 
-int main(void)
-{
-	// An sf::Window for raw OpenGL rendering.
-	sf::ContextSettings settings;
-	settings.antialiasingLevel = 4;
-	sf::RenderWindow app_window(sf::VideoMode(WIDTH, HEIGHT), "2D Fluid Simulator", sf::Style::Default, settings);
-	//app_window.setVerticalSyncEnabled(true);
-
-	main_font = new sf::Font;
-	main_font->loadFromFile("../Resources/arial.ttf");
-
-	app_window.setActive();
-
-	// Init GLEW functions
-	glewInit();
-	// GL_Display Init
-	glViewport(0, 0, static_cast<int>(app_window.getSize().x), static_cast<int>(app_window.getSize().y));
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
-	glOrtho(0, 1, 1, 0, 0, 1);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	// FPS init
-	sf::Text fps_text;
-	previous_time = fps_clock.getElapsedTime().asMilliseconds();
-
-	//SFML mainloop
-	while (app_window.isOpen()) {
-		CalculateFPS();
-
-		sf::Event event;
-		while (app_window.pollEvent(event)) {
-			if (event.type == sf::Event::Closed) {
-				app_window.close();
-				break;
-			}
-			else if (event.type == sf::Event::Resized) {
-				glViewport(0, 0, event.size.width, event.size.height);
-				glMatrixMode(GL_PROJECTION);
-				glLoadIdentity();
-				glOrtho(0, 1, 1, 0, 0, 1);
-				glMatrixMode(GL_MODELVIEW);
-				glLoadIdentity();
-			}
-			else if (event.type == sf::Event::LostFocus)
-			{
-				// Pause the system
-			}
-			else {
-				if (event.type == sf::Event::MouseButtonPressed)
-				{
-
-					int i = (event.mouseButton.x / static_cast<float>(WIDTH)) * DIM + 1;
-					int j = (event.mouseButton.y / static_cast<float>(HEIGHT)) * DIM + 1;
-				}
-
-				if (event.type == sf::Event::MouseMoved)
-				{
-
-					int mouseX = event.mouseMove.x;
-					int mouseY = event.mouseMove.y;
-					if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
-						int i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
-						int j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
-
-
-
-						mouseX0 = mouseX;
-						mouseY0 = mouseY;
-					}
-				}
-			}
-		}
-
-		if (sf::Mouse::isButtonPressed(sf::Mouse::Left)){
-			int i = (sf::Mouse::getPosition(app_window).x / static_cast<float>(WIDTH)) * DIM + 1;
-			int j = (sf::Mouse::getPosition(app_window).y / static_cast<float>(HEIGHT)) * DIM + 1;
-			
-		}
-
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		//// Particles
-		//glPushMatrix();
-		//DrawParticles(red_scale->GetValue(), green_scale->GetValue(), blue_scale->GetValue(), alpha_scale->GetValue());
-		//glPopMatrix();
-
-		// Render Density
-		
-
-		// Grid Lines 
-		DrawGrid(true);
-
-		// SFML rendering.
-		// Draw FPS Text
-		app_window.pushGLStates();
-		PrintString(5, 16, fps_text, "FPS: %5.2f", fps);
-		app_window.draw(fps_text);
-		//// SFGUI Update
-		//desktop.Update(delta);
-		//sfgui.Display(app_window);
-		app_window.popGLStates();
-
-		// Finally, Display all
-		app_window.display();
-		//glFlush();
-	}
-
-	// cleanup
-	delete main_font;
-	return 0;
-}
+//int main(void)
+//{
+//	// An sf::Window for raw OpenGL rendering.
+//	sf::ContextSettings settings;
+//	settings.antialiasingLevel = 4;
+//	sf::RenderWindow app_window(sf::VideoMode(WIDTH, HEIGHT), "2D Fluid Simulator", sf::Style::Default, settings);
+//	//app_window.setVerticalSyncEnabled(true);
+//
+//	main_font = new sf::Font;
+//	main_font->loadFromFile("../Resources/arial.ttf");
+//	
+//	app_window.setActive();
+//
+//	// Init GLEW functions
+//	glewInit();
+//	// GL_Display Init
+//	glViewport(0, 0, static_cast<int>(app_window.getSize().x), static_cast<int>(app_window.getSize().y));
+//
+//	glMatrixMode(GL_PROJECTION);
+//	glLoadIdentity();
+//
+//	glOrtho(0, 1, 1, 0, 0, 1);
+//	glMatrixMode(GL_MODELVIEW);
+//	glLoadIdentity();
+//
+//	// FPS init
+//	sf::Text fps_text;
+//	previous_time = fps_clock.getElapsedTime().asMilliseconds();
+//
+//	//SFML mainloop
+//	while (app_window.isOpen()) {
+//		CalculateFPS();
+//
+//		sf::Event event;
+//		while (app_window.pollEvent(event)) {
+//			if (event.type == sf::Event::Closed) {
+//				app_window.close();
+//				break;
+//			}
+//			else if (event.type == sf::Event::Resized) {
+//				glViewport(0, 0, event.size.width, event.size.height);
+//				glMatrixMode(GL_PROJECTION);
+//				glLoadIdentity();
+//				glOrtho(0, 1, 1, 0, 0, 1);
+//				glMatrixMode(GL_MODELVIEW);
+//				glLoadIdentity();
+//			}
+//			else if (event.type == sf::Event::LostFocus)
+//			{
+//				// Pause the system
+//			}
+//			else {
+//				if (event.type == sf::Event::MouseButtonPressed)
+//				{
+//
+//					int i = (event.mouseButton.x / static_cast<float>(WIDTH)) * DIM + 1;
+//					int j = (event.mouseButton.y / static_cast<float>(HEIGHT)) * DIM + 1;
+//				}
+//
+//				if (event.type == sf::Event::MouseMoved)
+//				{
+//
+//					int mouseX = event.mouseMove.x;
+//					int mouseY = event.mouseMove.y;
+//					if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
+//						int i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
+//						int j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
+//
+//
+//
+//						mouseX0 = mouseX;
+//						mouseY0 = mouseY;
+//					}
+//				}
+//			}
+//		}
+//
+//		if (sf::Mouse::isButtonPressed(sf::Mouse::Left)){
+//			int i = (sf::Mouse::getPosition(app_window).x / static_cast<float>(WIDTH)) * DIM + 1;
+//			int j = (sf::Mouse::getPosition(app_window).y / static_cast<float>(HEIGHT)) * DIM + 1;
+//			
+//		}
+//
+//		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//
+//		//// Particles
+//		//glPushMatrix();
+//		//DrawParticles(red_scale->GetValue(), green_scale->GetValue(), blue_scale->GetValue(), alpha_scale->GetValue());
+//		//glPopMatrix();
+//
+//		// Render Density
+//		
+//
+//		// Grid Lines 
+//		DrawGrid(true);
+//
+//		// SFML rendering.
+//		// Draw FPS Text
+//		app_window.pushGLStates();
+//		PrintString(5, 16, fps_text, "FPS: %5.2f", fps);
+//		app_window.draw(fps_text);
+//		//// SFGUI Update
+//		//desktop.Update(delta);
+//		//sfgui.Display(app_window);
+//		app_window.popGLStates();
+//
+//		// Finally, Display all
+//		app_window.display();
+//		//glFlush();
+//	}
+//
+//	// cleanup
+//	delete main_font;
+//	return 0;
+//}
 
 void DrawGrid(bool x)
 {
