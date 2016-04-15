@@ -196,7 +196,7 @@ int main(void)
 		step(DIM, 0.01f, 0.f, 0.f, 10, sd, su, sv);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		/*for (int i = 256; i < 276; i++){
-			std::cout << sd[i] << std::endl;
+			std::cout << su[i] << std::endl;
 		}*/
 
 		//// Particles

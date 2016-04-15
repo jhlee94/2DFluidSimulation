@@ -110,7 +110,7 @@ __global__ void divergence_K(int size, float* u, float* v, float* p, float* div)
 
 	if (i<1 || i>N || j<1 || j>N) return;
 	
-		float h = 1.0f / (width-2);
+		float h = 1.0f / N;
 		// Calculate divergence using finite difference method
 		// We multiply by -1 here to reduce the number of negative multiplications in the pressure calculation
 		div[index(i, j)] = -0.5f*h*(u[index(i + 1, j)] - u[index(i - 1, j)] + v[index(i, j + 1)] - v[index(i, j - 1)]);
@@ -130,7 +130,7 @@ __global__ void subtractGradient_K(int size, float *u, float *v, float *p)
 	int N = (size - 2);
 
 	if (i<1 || i>N || j<1 || j>N) return;
-		float h = 1.0f / (width - 2);
+		float h = 1.0f / N;
 		// Calculate divergence using finite difference method
 		// We multiply by -1 here to reduce the number of negative multiplications in the pressure calculation
 		u[index(i, j)] -= 0.5*(p[index(i + 1, j)] - p[index(i - 1, j)]) / h;
@@ -207,7 +207,7 @@ void diffuse(int size, int b, float *x, float *x0, float diff, int iteration)
 	}
 
 	cudaDeviceSynchronize();
-	set_bnd_K<<<1, N>>>(size, b, x);
+	set_bnd_K<<<BLOCKS, THREADS>>>(size, b, x);
 	cudaDeviceSynchronize();
 }
 extern "C"
@@ -237,7 +237,7 @@ void project(int size, float *u, float *v, float *p, float *div, int iteration)
 		cudaDeviceSynchronize();
 		blackGauss_K << <BLOCKS, THREADS >> >(size, p, div, 1, 4);
 		cudaDeviceSynchronize();
-		set_bnd_K << < 1, N >> >(size, 0, p);
+		set_bnd_K << < BLOCKS, THREADS >> >(size, 0, p);
 		cudaDeviceSynchronize();
 	}
 
@@ -257,8 +257,9 @@ void step(int size, float dt, float viscosity, float diffusion, int iteration, f
 	// Add Velocity Source
 	cudaMemcpy(d_u0, su, size*sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_v0, sv, size*sizeof(float), cudaMemcpyHostToDevice);
-	addSource_K << <BLOCKS, THREADS >> >(size, d_u, d_u0, dt);
-	addSource_K << <BLOCKS, THREADS >> >(size, d_v, d_v0, dt);
+	addSource_K <<<1, 1>>>(size, d_u, d_u0, dt);
+	cudaDeviceSynchronize();
+	addSource_K <<<1, 1>>>(size, d_v, d_v0, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_u0, d_u);
@@ -284,7 +285,7 @@ void step(int size, float dt, float viscosity, float diffusion, int iteration, f
 	// Density step
 	// Add Density Source
 	cudaMemcpy(d_d0, sd, size*sizeof(float), cudaMemcpyHostToDevice);
-	addSource_K <<<BLOCKS, THREADS >>>(size, d_d, d_d0, dt);
+	addSource_K <<<1, 1>>>(size, d_d, d_d0, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_d0, d_d);
