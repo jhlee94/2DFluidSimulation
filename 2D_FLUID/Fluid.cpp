@@ -142,6 +142,8 @@ void Fluid2DCPU::advect(int b, float *d, float *d0, float *u, float *v, float dt
 void Fluid2DCPU::project(float *u, float *v, float *p, float *div)
 {
 	int i, j, k;
+
+	// Divergence
 	float h;
 	h = 1.0f / dim;
 	for (i = 1; i <= dim; i++) {
@@ -157,6 +159,7 @@ void Fluid2DCPU::project(float *u, float *v, float *p, float *div)
 
 	linearSolve(0, p, div, 1, 4);
 
+	// Subtract Gradient
 	for (i = 1; i <= dim; i++) {
 		for (j = 1; j <= dim; j++) {
 			u[index(i, j)] -= 0.5*(p[index(i + 1, j)] - p[index(i - 1, j)]) / h;

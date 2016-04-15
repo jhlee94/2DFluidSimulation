@@ -8,17 +8,16 @@ typedef struct {
 	int height;
 	int steps;
 	float timestep;    // Timestep in Seconds
-	float dissipation; // Mass Dissipation Constant (how our "ink" dissipates over time). Set to 1 for no dissipation, 0.995 tends to look nice though.
 } Dimensions;
 
 __constant__ Dimensions ddim;
 
-__global__ void add_source_K(float *d, float *s);
-__global__ void advect_K(float *dold, float *d, float *u, float *v, float md);
-__global__ void divergence_K(float *u, float *v, float *div);
-__global__ void pressure_K(float *u, float *v, float *p, float *pold, float *div);
-__global__ void set_bnd_K(float *u, float *v, float *p);
-__global__ void velocity_bc_K(float *u, float *v);
-__global__ void pressure_bc_K(float *p);
+__global__ void addSource_K(float *d, float *s);
+__global__ void advect_K(float *d, float *d0, float *u, float *v);
+__global__ void redGauss_K(float *x, float *x0, float a, float c);
+__global__ void blackGauss_K(float *x, float *x0, float a, float c);
+__global__ void divergence_K(float* u, float* v, float* p, float* div);
+__global__ void subtractGradient_K(float *u, float *v, float *p);
+__global__ void set_bnd_K(int b, float *x);
 
 #endif
