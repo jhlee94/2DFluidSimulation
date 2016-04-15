@@ -10,13 +10,12 @@
 //velocity and pressure
 float *d_u, *d_v;
 float *d_u0, *d_v0;
-float *utemp, *vtemp; // temp pointers, DO NOT INITIALIZE
 
 //divergence of velocity
 float *d_div;
 
 //density
-float *d_d, *d_d0, *dtemp;
+float *d_d, *d_d0;
 
 
 __global__ void add_source_K(float *d, float *s) {
@@ -202,7 +201,7 @@ void freeCUDA()
 	cudaFree(d_v0);
 	cudaFree(d_div);
 }
-
+extern "C"
 void diffuse(int b, float *x, float *x0, float diff, int iteration)
 {
 	int N = (ddim.width - 2);
@@ -219,7 +218,7 @@ void diffuse(int b, float *x, float *x0, float diff, int iteration)
 	set_bnd_K<<<1, N>>>(b, x);
 	cudaDeviceSynchronize();
 }
-
+extern "C"
 void advect(int b, float *d, float *d0, float *u, float *v)
 {
 	int N = (ddim.width - 2);
@@ -229,7 +228,7 @@ void advect(int b, float *d, float *d0, float *u, float *v)
 	set_bnd_K<<<1, N >>>(b, d);
 	cudaDeviceSynchronize();
 }
-
+extern "C"
 void project(float *u, float *v, float *p, float *div)
 {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
