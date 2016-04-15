@@ -33,7 +33,7 @@ int mouseX0 = -10, mouseY0 = -10;
 // Cuda Kernels
 extern "C" void initCUDA(int size);
 extern "C" void freeCUDA();
-extern "C" void step(int size, float dt, float viscosity, float diffusion, int iteration);
+extern "C" void step(int size, float dt, float viscosity, float diffusion, int iteration, float *sd);
 // Graphics Functions
 void DrawGrid(bool);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
@@ -69,7 +69,7 @@ int main(void)
 	sd = new float[size];
 	su = new float[size];
 	sv = new float[size];
-
+	initCUDA(DS);
 	// Init GLEW functions
 	glewInit();
 	// GL_Display Init
@@ -139,7 +139,15 @@ int main(void)
 			
 		}
 
-		step(DS, 0.01f, 0.f, 0.f, 10);
+		step(DS, 0.01f, 0.f, 0.f, 10, sd);
+		for (int i = 10; i < 30; i++)
+		{
+			for (int j = 10; j < 30; j++)
+			{
+				int idx = i + 256 * j;
+				std::cout << sd[idx] << std::endl;
+			}
+		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//// Particles
@@ -148,28 +156,28 @@ int main(void)
 		//glPopMatrix();
 
 		// Render Density
-		//for (int i = 0; i < DIM; i++) {
-		//	for (int j = 0; j < DIM; j++) {
-		//		int cell_idx = i + DIM * j;
+		for (int i = 0; i < DIM; i++) {
+			for (int j = 0; j < DIM; j++) {
+				int cell_idx = i + DIM * j;
 
-		//		float density = sd[cell_idx];
-		//		float color;
-		//		if (density > 0)
-		//		{
-		//			//color = std::fmod(density, 100.f) / 100.f;
-		//			glPushMatrix();
-		//			glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
-		//			glBegin(GL_QUADS);
-		//			glColor3f(1.f, 1.f, 1.f);
-		//			glVertex2f(0.f, TILE_SIZE_Y);
-		//			glVertex2f(0.f, 0.f);
-		//			glVertex2f(TILE_SIZE_X, 0.f);
-		//			glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
-		//			glEnd();
-		//			glPopMatrix();
-		//		}
-		//	}
-		//}
+				float density = sd[cell_idx];
+				float color;
+				if (density > 0)
+				{
+					//color = std::fmod(density, 100.f) / 100.f;
+					glPushMatrix();
+					glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
+					glBegin(GL_QUADS);
+					glColor3f(1.f, 1.f, 1.f);
+					glVertex2f(0.f, TILE_SIZE_Y);
+					glVertex2f(0.f, 0.f);
+					glVertex2f(TILE_SIZE_X, 0.f);
+					glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
+					glEnd();
+					glPopMatrix();
+				}
+			}
+		}
 
 		// Grid Lines 
 		DrawGrid(false);
@@ -251,5 +259,6 @@ void CalculateFPS()
 		previous_time = current_time;
 		//  Reset frame count
 		frame_count = 0;
+
 	}
 }

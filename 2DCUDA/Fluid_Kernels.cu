@@ -3,8 +3,9 @@
 #include <stdio.h>
 #include "Fluid_Kernels.cuh"
 #include "device_launch_parameters.h"
+#include <iostream>
 
-#define index(i,j) ((i) * (ddim.width) *(j))
+#define index(i,j) ((i) * (256) *(j))
 #define SWAP(a0, a) {float *tmp = a0; a0 = a; a = tmp;}
 
 //velocity and pressure
@@ -35,7 +36,6 @@ __global__ void add_source_K(float *d, float *s) {
 
 __global__ void advect_K(float *d, float *d0, float *u, float *v) {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int size = ddim.width * ddim.height;
 	int j = (int)gtidx / (ddim.width);
 	int i = (int)gtidx - (j*ddim.width);
 	int N = (ddim.width - 2);
@@ -45,6 +45,9 @@ __global__ void advect_K(float *d, float *d0, float *u, float *v) {
 
 	dt0 = (ddim.timestep*N);
 	if (i<1 || i>N || j<1 || j>N) return;
+
+	x = i + dt0*u[index(i, j)];
+	y = j + dt0*v[index(i, j)];
 
 	if (x<0.5) x = 0.5;
 	if (x>N + 0.5) x = N + 0.5;
@@ -69,7 +72,6 @@ __global__ void advect_K(float *d, float *d0, float *u, float *v) {
 __global__ void redGauss_K(float *x, float *x0, float a, float c)
 {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int size = ddim.width * ddim.height;
 	int j = (int)gtidx / (ddim.width);
 	int i = (int)gtidx - (j*ddim.width);
 	float invC = 1.f / c;
@@ -79,19 +81,13 @@ __global__ void redGauss_K(float *x, float *x0, float a, float c)
 
 	if ((i + j) % 2 == 0)
 	{
-		x[index(i, j)] =
-			(x0[index(i, j)] +
-			a * (x[index(i - 1, j)] +
-			x[index(i + 1, j)] +
-			x[index(i, j - 1)] +
-			x[index(i, j + 1)])) * invC;
+		x[index(i, j)] = (x0[index(i, j)] +	a * (x[index(i - 1, j)] + x[index(i + 1, j)] + x[index(i, j - 1)] +	x[index(i, j + 1)])) * invC;
 	}
 }
 
 __global__ void blackGauss_K(float *x, float *x0, float a, float c)
 {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int size = ddim.width * ddim.height;
 	int j = (int)gtidx / (ddim.width);
 	int i = (int)gtidx - (j*ddim.width);
 	float invC = 1.f / c;
@@ -101,12 +97,7 @@ __global__ void blackGauss_K(float *x, float *x0, float a, float c)
 
 	if ((i + j) % 2 != 0)
 	{
-		x[index(i, j)] =
-			(x0[index(i, j)] +
-			a * (x[index(i - 1, j)] +
-			x[index(i + 1, j)] +
-			x[index(i, j - 1)] +
-			x[index(i, j + 1)])) * invC;
+		x[index(i, j)] = (x0[index(i, j)] +	a * (x[index(i - 1, j)] + x[index(i + 1, j)] + x[index(i, j - 1)] +	x[index(i, j + 1)])) * invC;
 	}
 }
 
@@ -183,7 +174,7 @@ void initCUDA(int size)
 	// Initialize our "previous" values of density and velocity to be all zero
 	cudaMemset(d_u, 0, size * sizeof(float));
 	cudaMemset(d_v, 0, size * sizeof(float));
-	cudaMemset(d_d, 0, size * sizeof(float));
+	cudaMemset(d_d, 1.f, size * sizeof(float));
 	cudaMemset(d_u0, 0, size * sizeof(float));
 	cudaMemset(d_v0, 0, size * sizeof(float));
 	cudaMemset(d_d0, 0, size * sizeof(float));
@@ -204,14 +195,14 @@ void freeCUDA()
 extern "C"
 void diffuse(int b, float *x, float *x0, float diff, int iteration)
 {
-	int N = (ddim.width - 2);
-	float a = ddim.timestep * diff * (float) N * (float) N;
-
+	int N = (256 - 2);
+	float a = 0.01f * diff * (float) N * (float) N;
+	float c = 1.f + 4.f *a;
 	for (int i = 0; i < iteration; i++)
 	{
-		redGauss_K<<<BLOCKS, THREADS>>>(x, x0, x, a, (1 + 4 * a));
+		redGauss_K<<<BLOCKS, THREADS>>>(x, x0, a, c);
 		cudaDeviceSynchronize();
-		blackGauss_K<<<BLOCKS, THREADS>>>(x, x0, x, a, (1 + 4 * a));
+		blackGauss_K<<<BLOCKS, THREADS>>>(x, x0, a, c);
 	}
 
 	cudaDeviceSynchronize();
@@ -221,7 +212,7 @@ void diffuse(int b, float *x, float *x0, float diff, int iteration)
 extern "C"
 void advect(int b, float *d, float *d0, float *u, float *v)
 {
-	int N = (ddim.width - 2);
+	int N = (256 - 2);
 
 	advect_K<<<BLOCKS, THREADS >>>(d, d0, u, v);
 	cudaDeviceSynchronize();
@@ -231,11 +222,7 @@ void advect(int b, float *d, float *d0, float *u, float *v)
 extern "C"
 void project(float *u, float *v, float *p, float *div)
 {
-	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int size = ddim.width * ddim.height;
-	int j = (int)gtidx / (ddim.width);
-	int i = (int)gtidx - (j*ddim.width);
-	int N = (ddim.width - 2);
+	int N = (256 - 2);
 
 	divergence_K<<<BLOCKS, THREADS >>>(u, v, p, div);
 	cudaDeviceSynchronize();
@@ -244,9 +231,9 @@ void project(float *u, float *v, float *p, float *div)
 	cudaDeviceSynchronize();
 
 	// Linear Solve
-	redGauss_K<<<BLOCKS, THREADS >>>(p, div, p, 1, 4);
+	redGauss_K<<<BLOCKS, THREADS >>>(p, div, 1, 4);
 	cudaDeviceSynchronize();
-	blackGauss_K<<<BLOCKS, THREADS >>>(p, div, p, 1, 4);
+	blackGauss_K<<<BLOCKS, THREADS >>>(p, div, 1, 4);
 	cudaDeviceSynchronize();
 	set_bnd_K<<< 1, N >>>(0, p);
 
@@ -258,10 +245,10 @@ void project(float *u, float *v, float *p, float *div)
 }
 
 extern "C"
-void step(int size, float dt, float viscosity, float diffusion, int iteration)
+void step(int size, float dt, float viscosity, float diffusion, int iteration, float *sd)
 {
-	if (dt != ddim.timestep)
-		ddim.timestep = dt;
+	if (dt != 0.01f);
+		//ddim.timestep = dt;
 	// Vel step
 	// Add Velocity Source
 
@@ -292,6 +279,9 @@ void step(int size, float dt, float viscosity, float diffusion, int iteration)
 	
 	// Reset for next Step
 	cudaMemset(d_d0, 0, size * sizeof(float));
+
+	cudaMemcpy(sd, d_d, size*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaDeviceSynchronize();
 
 	return;
 }
