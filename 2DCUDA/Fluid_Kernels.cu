@@ -5,7 +5,7 @@
 #include "device_launch_parameters.h"
 
 #define index(i,j) ((i) * (ddim.width) *(j))
-#define SWAP(x0, x) {float *tmp = x0; x0 = x; x = tmp;}
+#define SWAP(a0, a) {float *tmp = a0; a0 = a; a = tmp;}
 
 //velocity and pressure
 float *d_u, *d_v;
