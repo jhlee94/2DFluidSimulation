@@ -210,13 +210,13 @@ void diffuse(int b, float *x, float *x0, float diff, int iteration)
 
 	for (int i = 0; i < iteration; i++)
 	{
-		redGauss_K <<<BLOCKS, THREADS>>>(x, x0, x, a, (1 + 4 * a));
+		redGauss_K<<<BLOCKS, THREADS>>>(x, x0, x, a, (1 + 4 * a));
 		cudaDeviceSynchronize();
-		blackGauss_K <<<BLOCKS, THREADS>>>(x, x0, x, a, (1 + 4 * a));
+		blackGauss_K<<<BLOCKS, THREADS>>>(x, x0, x, a, (1 + 4 * a));
 	}
 
 	cudaDeviceSynchronize();
-	set_bnd_K <<<1, THREADS>>>(b, x);
+	set_bnd_K<<<1, N>>>(b, x);
 	cudaDeviceSynchronize();
 }
 
@@ -224,9 +224,9 @@ void advect(int b, float *d, float *d0, float *u, float *v)
 {
 	int N = (ddim.width - 2);
 
-	advect_K << <BLOCKS, THREADS >> >(d, d0, u, v);
+	advect_K<<<BLOCKS, THREADS >>>(d, d0, u, v);
 	cudaDeviceSynchronize();
-	set_bnd_K << <1, N >> >(b, d);
+	set_bnd_K<<<1, N >>>(b, d);
 	cudaDeviceSynchronize();
 }
 
@@ -238,23 +238,23 @@ void project(float *u, float *v, float *p, float *div)
 	int i = (int)gtidx - (j*ddim.width);
 	int N = (ddim.width - 2);
 
-	divergence_K << <BLOCKS, THREADS >> >(u, v, p, div);
+	divergence_K<<<BLOCKS, THREADS >>>(u, v, p, div);
 	cudaDeviceSynchronize();
-	set_bnd_K << <1, N >> >(0, div);
-	set_bnd_K << <1, N >> >(0, p);
+	set_bnd_K<<<1, N >>>(0, div);
+	set_bnd_K<<<1, N >>>(0, p);
 	cudaDeviceSynchronize();
 
 	// Linear Solve
-	redGauss_K << <BLOCKS, THREADS >> >(p, div, p, 1, 4);
+	redGauss_K<<<BLOCKS, THREADS >>>(p, div, p, 1, 4);
 	cudaDeviceSynchronize();
-	blackGauss_K << <BLOCKS, THREADS >> >(p, div, p, 1, 4);
+	blackGauss_K<<<BLOCKS, THREADS >>>(p, div, p, 1, 4);
 	cudaDeviceSynchronize();
-	set_bnd_K<<< 1, N >>> (0, p);
+	set_bnd_K<<< 1, N >>>(0, p);
 
-	subtractGradient_K << <BLOCKS, THREADS >> >(u, v, p);
+	subtractGradient_K <<<BLOCKS, THREADS >>>(u, v, p);
 	cudaDeviceSynchronize();
-	set_bnd_K << <1, N >> >(1, u);
-	set_bnd_K << <1, N >> >(2, v);
+	set_bnd_K<<<1, N >>>(1, u);
+	set_bnd_K<<<1, N >>>(2, v);
 	cudaDeviceSynchronize();
 }
 
