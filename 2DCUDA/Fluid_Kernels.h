@@ -5,19 +5,18 @@
 
 typedef struct {
 	int width;
-	int height;
 	int steps;
 	float timestep;    // Timestep in Seconds
 } Dimensions;
 
 __constant__ Dimensions ddim;
 
-__global__ void addSource_K(float *d, float *s);
-__global__ void advect_K(float *d, float *d0, float *u, float *v);
-__global__ void redGauss_K(float *x, float *x0, float a, float c);
-__global__ void blackGauss_K(float *x, float *x0, float a, float c);
-__global__ void divergence_K(float* u, float* v, float* p, float* div);
-__global__ void subtractGradient_K(float *u, float *v, float *p);
-__global__ void set_bnd_K(int b, float *x);
+__global__ void addSource_K(int size, float *d, float *s);
+__global__ void advect_K(int size, float *d, float *d0, float *u, float *v);
+__global__ void redGauss_K(int size, float *x, float *x0, float a, float c);
+__global__ void blackGauss_K(int size, float *x, float *x0, float a, float c);
+__global__ void divergence_K(int size, float *u, float *v, float *p, float *div);
+__global__ void subtractGradient_K(int size, float *u, float *v, float *p);
+__global__ void set_bnd_K(int size, int b, float *x);
 
 #endif

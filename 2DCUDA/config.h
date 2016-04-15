@@ -3,8 +3,8 @@
 #define DIM 256 // Grid Dimension
 #define DS (DIM * DIM)
 
-#define THREADS 128
-#define BLOCKS (DS/THREADS)
+#define THREADS 736
+#define BLOCKS 90
 
 
 #define TILE_SIZE_X (float) (WIDTH/DIM) / WIDTH

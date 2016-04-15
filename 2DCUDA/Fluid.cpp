@@ -14,6 +14,7 @@
 #include <SFML\OpenGL.hpp>
 
 #include <SFGUI\SFGUI.hpp>
+#include <SFGUI/Widgets.hpp>
 
 #include "config.h"
 #include "Fluid_Kernels.h"
@@ -33,7 +34,7 @@ int mouseX0 = -10, mouseY0 = -10;
 // Cuda Kernels
 extern "C" void initCUDA(int size);
 extern "C" void freeCUDA();
-extern "C" void step(int size, float dt, float viscosity, float diffusion, int iteration, float *sd);
+extern "C" void step(int size, float dt, float viscosity, float diffusion, int iteration, float *sd, float *su, float *sv);
 // Graphics Functions
 void DrawGrid(bool);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
@@ -50,14 +51,13 @@ int main(void)
 	main_font = new sf::Font;
 	main_font->loadFromFile("../Resources/arial.ttf");
 
+	sfg::SFGUI sfgui;
 	app_window.setActive();
-	
 
 	// Initialise CUDA requirements
 	ddim.width = DIM;
-	ddim.height = DIM;
 	ddim.timestep = 0.01f;
-	int size = ddim.width * ddim.height;
+	int size = DS;
 
 	// Init Fluid variables on Device side
 
@@ -69,9 +69,52 @@ int main(void)
 	sd = new float[size];
 	su = new float[size];
 	sv = new float[size];
+
+	for (int i = 0; i < size; i++){
+		sd[i] = 0.f;
+		su[i] = 0.f;
+		sv[i] = 0.f;
+	}
+
 	initCUDA(DS);
 	// Init GLEW functions
 	glewInit();
+
+	// GUI
+	auto viscosity_scale = sfg::Scale::Create(0.f, 0.001f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
+	auto diffusion_scale = sfg::Scale::Create(0.f, 0.001f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
+	auto solver_scale = sfg::Scale::Create(0.f, 40.f, 1.0f, sfg::Scale::Orientation::HORIZONTAL);
+	auto dt_scale = sfg::Scale::Create(0.f, 0.5f, .01f, sfg::Scale::Orientation::HORIZONTAL);
+	auto grid_check = sfg::CheckButton::Create("Show Grid");
+
+	auto table = sfg::Table::Create();
+	table->SetRowSpacings(5.f);
+	table->SetColumnSpacings(5.f);
+
+	table->Attach(sfg::Label::Create("Change the color of the rect using the scales below."), sf::Rect<sf::Uint32>(0, 0, 3, 1), sfg::Table::FILL, sfg::Table::FILL);
+	table->Attach(sfg::Label::Create("Viscosity:"), sf::Rect<sf::Uint32>(0, 1, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
+	table->Attach(viscosity_scale, sf::Rect<sf::Uint32>(1, 1, 1, 1), sfg::Table::FILL | sfg::Table::EXPAND, sfg::Table::FILL | sfg::Table::EXPAND);
+	table->Attach(sfg::Label::Create("Diffusion:"), sf::Rect<sf::Uint32>(0, 2, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
+	table->Attach(diffusion_scale, sf::Rect<sf::Uint32>(1, 2, 1, 1), sfg::Table::FILL | sfg::Table::EXPAND, sfg::Table::FILL | sfg::Table::EXPAND);
+	table->Attach(sfg::Label::Create("Solver Iteration:"), sf::Rect<sf::Uint32>(0, 3, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
+	table->Attach(solver_scale, sf::Rect<sf::Uint32>(1, 3, 1, 1), sfg::Table::FILL | sfg::Table::EXPAND, sfg::Table::FILL | sfg::Table::EXPAND);
+	table->Attach(sfg::Label::Create("Time Step:"), sf::Rect<sf::Uint32>(0, 4, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
+	table->Attach(dt_scale, sf::Rect<sf::Uint32>(1, 4, 1, 1), sfg::Table::FILL | sfg::Table::EXPAND, sfg::Table::FILL | sfg::Table::EXPAND);
+	table->Attach(grid_check, sf::Rect<sf::Uint32>(1, 5, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
+
+	auto window = sfg::Window::Create();
+	window->SetTitle("Fluid Panel");
+	window->SetPosition(sf::Vector2f(WIDTH - 450.f, 100.f));
+	window->Add(table);
+
+	sfg::Desktop desktop;
+	desktop.Add(window);
+
+	viscosity_scale->SetValue(.0001f);
+	diffusion_scale->SetValue(0.0002f);
+	solver_scale->SetValue(20.f);
+	dt_scale->SetValue(0.1f);
+
 	// GL_Display Init
 	glViewport(0, 0, static_cast<int>(app_window.getSize().x), static_cast<int>(app_window.getSize().y));
 
@@ -89,7 +132,7 @@ int main(void)
 	//SFML mainloop
 	while (app_window.isOpen()) {
 		CalculateFPS();
-
+		auto delta = sim_clock.restart().asSeconds();
 		sf::Event event;
 		while (app_window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed) {
@@ -109,6 +152,7 @@ int main(void)
 				// Pause the system
 			}
 			else {
+				desktop.HandleEvent(event);
 				if (event.type == sf::Event::MouseButtonPressed)
 				{
 					int i = (event.mouseButton.x / static_cast<float>(WIDTH)) * DIM + 1;
@@ -123,8 +167,15 @@ int main(void)
 					if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
 						int i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
 						int j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
+						float dirX = (mouseX - mouseX0) * 300;
+						float dirY = (mouseY - mouseY0) * 300;
 
-
+						su[((i + 1) + DIM * j)] = dirX;
+						su[(i + DIM * j)] = dirX;
+						su[((i - 1) + DIM * j)] = dirX;
+						sv[((i + 1) + DIM * j)] = dirY;
+						sv[(i + DIM * j)] = dirY;
+						sv[((i - 1) + DIM * j)] = dirY;
 
 						mouseX0 = mouseX;
 						mouseY0 = mouseY;
@@ -136,19 +187,17 @@ int main(void)
 		if (sf::Mouse::isButtonPressed(sf::Mouse::Left)){
 			int i = (sf::Mouse::getPosition(app_window).x / static_cast<float>(WIDTH)) * DIM + 1;
 			int j = (sf::Mouse::getPosition(app_window).y / static_cast<float>(HEIGHT)) * DIM + 1;
-			
+		
+			sd[((i+1) + DIM * j)] = 100.f;
+			sd[(i + DIM * j)] = 100.f;
+			sd[((i-1) + DIM * j)] = 100.f;
 		}
 
-		step(DS, 0.01f, 0.f, 0.f, 10, sd);
-		for (int i = 10; i < 30; i++)
-		{
-			for (int j = 10; j < 30; j++)
-			{
-				int idx = i + 256 * j;
-				std::cout << sd[idx] << std::endl;
-			}
-		}
+		step(DIM, 0.01f, 0.f, 0.f, 10, sd, su, sv);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		/*for (int i = 256; i < 276; i++){
+			std::cout << sd[i] << std::endl;
+		}*/
 
 		//// Particles
 		//glPushMatrix();
@@ -156,8 +205,8 @@ int main(void)
 		//glPopMatrix();
 
 		// Render Density
-		for (int i = 0; i < DIM; i++) {
-			for (int j = 0; j < DIM; j++) {
+		for (int i = 1; i < DIM-1; i++) {
+			for (int j = 1; j < DIM-1; j++) {
 				int cell_idx = i + DIM * j;
 
 				float density = sd[cell_idx];
@@ -180,16 +229,16 @@ int main(void)
 		}
 
 		// Grid Lines 
-		DrawGrid(false);
+		DrawGrid(grid_check->IsActive());
 
 		// SFML rendering.
 		// Draw FPS Text
 		app_window.pushGLStates();
 		PrintString(5, 16, fps_text, "FPS: %5.2f", fps);
 		app_window.draw(fps_text);
-		//// SFGUI Update
-		//desktop.Update(delta);
-		//sfgui.Display(app_window);
+		// SFGUI Update
+		desktop.Update(delta);
+		sfgui.Display(app_window);
 		app_window.popGLStates();
 
 		// Finally, Display all
@@ -236,7 +285,7 @@ void PrintString(float x, float y, sf::Text& text, const char* string, ...)
 	text.setCharacterSize(15);
 	text.setPosition(x, y);
 	text.setString(buffer);
-	text.setColor(sf::Color::White);
+	text.setColor(sf::Color::Green);
 }
 
 void CalculateFPS()
