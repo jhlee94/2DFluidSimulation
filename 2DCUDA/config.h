@@ -4,7 +4,7 @@
 #define DS (DIM * DIM)
 
 #define THREADS 736
-#define BLOCKS 90
+#define BLOCKS (DS/THREADS)
 
 
 #define TILE_SIZE_X (float) (WIDTH/DIM) / WIDTH

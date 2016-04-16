@@ -79,8 +79,8 @@ int main()
 	sfg::Desktop desktop;
 	desktop.Add(window);
 
-	viscosity_scale->SetValue(.0001f);
-	diffusion_scale->SetValue(0.0002f);
+	viscosity_scale->SetValue(0.f);
+	diffusion_scale->SetValue(0.f);
 	solver_scale->SetValue(20.f);
 	dt_scale->SetValue(0.1f);
 
@@ -203,8 +203,9 @@ int main()
 		//DrawParticles(red_scale->GetValue(), green_scale->GetValue(), blue_scale->GetValue(), alpha_scale->GetValue());
 		//glPopMatrix();
 		
-		// Render Density
+		// Step Fluid
 		fluid_solver->step(dt_scale->GetValue());
+		// Render Density
 		for (int i = 1; i <= TILE_DIM; i++) {
 			for (int j = 1; j <= TILE_DIM; j++) {
 				int cell_idx = fluid_solver->index(i, j);

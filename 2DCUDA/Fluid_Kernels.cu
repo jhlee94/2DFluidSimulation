@@ -5,7 +5,7 @@
 #include "device_launch_parameters.h"
 #include <iostream>
 
-#define index(i,j) ((i) * (DIM) *(j))
+#define index(i,j) ((i) + (DIM) *(j))
 #define SWAP(a0, a) {float *tmp = a0; a0 = a; a = tmp;}
 
 //velocity and pressure
@@ -18,12 +18,11 @@ float *d_div;
 //density
 float *d_d, *d_d0;
 
-
 __global__ void addSource_K(int size, float *d, float *s, float dt) {
-	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int i = gtidx % size;
+	int gtidx = blockIdx.x * blockDim.x + threadIdx.x;
+	int i =  gtidx % size;
 	int j = gtidx / size;
-	int N = (size - 2);
+	int N = (256 - 2);
 
 	// Skip Boundary values
 	if (i<1 || i>N || j<1 || j>N) return;
@@ -161,25 +160,24 @@ __global__ void set_bnd_K(int size, int b, float *x) {
 
 
 extern "C"
-void initCUDA(int size)
+void initCUDA(int dim)
 {
-	cudaSetDevice(0);
-	cudaMalloc((void**)&d_div, size * sizeof(float));
-	cudaMalloc((void**)&d_d, size * sizeof(float));
-	cudaMalloc((void**)&d_d0, size * sizeof(float));
-	cudaMalloc((void**)&d_u, size * sizeof(float));
-	cudaMalloc((void**)&d_u0, size * sizeof(float));
-	cudaMalloc((void**)&d_v, size * sizeof(float));
-	cudaMalloc((void**)&d_v0, size * sizeof(float));
+	cudaMalloc((void**)&d_div, dim * sizeof(float));
+	cudaMalloc((void**)&d_d, dim * sizeof(float));
+	cudaMalloc((void**)&d_d0, dim * sizeof(float));
+	cudaMalloc((void**)&d_u, dim * sizeof(float));
+	cudaMalloc((void**)&d_u0, dim * sizeof(float));
+	cudaMalloc((void**)&d_v, dim * sizeof(float));
+	cudaMalloc((void**)&d_v0, dim * sizeof(float));
 
 	// Initialize our "previous" values of density and velocity to be all zero
-	cudaMemset(d_u, 0, size * sizeof(float));
-	cudaMemset(d_v, 0, size * sizeof(float));
-	cudaMemset(d_d, 0, size * sizeof(float));
-	cudaMemset(d_u0, 0, size * sizeof(float));
-	cudaMemset(d_v0, 0, size * sizeof(float));
-	cudaMemset(d_d0, 0, size * sizeof(float));
-	cudaMemset(d_div, 0, size * sizeof(float));
+	cudaMemset(d_u, 0, dim * sizeof(float));
+	cudaMemset(d_v, 0, dim * sizeof(float));
+	cudaMemset(d_d, 0, dim * sizeof(float));
+	cudaMemset(d_u0, 0, dim * sizeof(float));
+	cudaMemset(d_v0, 0, dim * sizeof(float));
+	cudaMemset(d_d0, 0, dim * sizeof(float));
+	cudaMemset(d_div, 0, dim * sizeof(float));
 }
 
 extern "C"
@@ -192,8 +190,10 @@ void freeCUDA()
 	cudaFree(d_v);
 	cudaFree(d_v0);
 	cudaFree(d_div);
+
+	cudaDeviceReset();
 }
-extern "C"
+
 void diffuse(int size, int b, float *x, float *x0, float diff, int iteration)
 {
 	int N = (size - 2);
@@ -210,7 +210,7 @@ void diffuse(int size, int b, float *x, float *x0, float diff, int iteration)
 	set_bnd_K<<<BLOCKS, THREADS>>>(size, b, x);
 	cudaDeviceSynchronize();
 }
-extern "C"
+
 void advect(int size, int b, float *d, float *d0, float *u, float *v, float dt)
 {
 	int N = (size - 2);
@@ -220,7 +220,7 @@ void advect(int size, int b, float *d, float *d0, float *u, float *v, float dt)
 	set_bnd_K<<<1, N >>>(size, b, d);
 	cudaDeviceSynchronize();
 }
-extern "C"
+
 void project(int size, float *u, float *v, float *p, float *div, int iteration)
 {
 	int N = (size - 2);
@@ -251,15 +251,12 @@ void project(int size, float *u, float *v, float *p, float *div, int iteration)
 extern "C"
 void step(int size, float dt, float viscosity, float diffusion, int iteration, float *sd, float *su, float *sv)
 {
-	//if (dt != 0.01f);
-	//	//ddim.timestep = dt;
 	// Vel step
 	// Add Velocity Source
-	cudaMemcpy(d_u0, su, size*sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_v0, sv, size*sizeof(float), cudaMemcpyHostToDevice);
-	addSource_K <<<1, 1>>>(size, d_u, d_u0, dt);
-	cudaDeviceSynchronize();
-	addSource_K <<<1, 1>>>(size, d_v, d_v0, dt);
+	cudaMemcpy(d_u0, su, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_v0, sv, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
+	addSource_K <<<BLOCKS, THREADS>>>(size, d_u, d_u0, dt);
+	addSource_K <<<BLOCKS, THREADS>>>(size, d_v, d_v0, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_u0, d_u);
@@ -275,17 +272,11 @@ void step(int size, float dt, float viscosity, float diffusion, int iteration, f
 	advect(size, 1, d_v, d_v0, d_u0, d_v0, dt);
 
 	project(size, d_u, d_v, d_u0, d_v0, iteration);
-
-	// Reset for next step
-	cudaMemset(d_u0, 0, size * sizeof(float));
-	cudaMemset(d_v0, 0, size * sizeof(float));
-
-
 	
 	// Density step
 	// Add Density Source
-	cudaMemcpy(d_d0, sd, size*sizeof(float), cudaMemcpyHostToDevice);
-	addSource_K <<<1, 1>>>(size, d_d, d_d0, dt);
+	cudaMemcpy(d_d0, sd, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
+	addSource_K <<<BLOCKS, THREADS>>>(size, d_d, d_d0, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_d0, d_d);
@@ -293,11 +284,8 @@ void step(int size, float dt, float viscosity, float diffusion, int iteration, f
 	SWAP(d_d0, d_d);
 	advect(size, 0, d_d, d_d0, d_u, d_v, dt);
 
-	// Reset for next Step
-	cudaMemset(d_d0, 0, size * sizeof(float));
-
-	cudaMemcpy(sd, d_d, size*sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(su, d_u, size*sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(sv, d_v, size*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(sd, d_d, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(su, d_u, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(sv, d_v, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
 	return;
 }

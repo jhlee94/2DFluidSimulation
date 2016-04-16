@@ -19,9 +19,10 @@
 #include "config.h"
 #include "Fluid_Kernels.h"
 
-// Global Variable Init
-float *map;
+#define CLAMP(v, a, b) (a + (v - a) / (b - a))
+#define index(i,j) ((i) + (DIM) *(j))
 
+// Global Variable Init
 //sources
 float *sd, *su, *sv;
 
@@ -39,6 +40,7 @@ extern "C" void step(int size, float dt, float viscosity, float diffusion, int i
 void DrawGrid(bool);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
+void applyColor(float x, float, float);
 
 int main(void)
 {
@@ -75,8 +77,8 @@ int main(void)
 		su[i] = 0.f;
 		sv[i] = 0.f;
 	}
-
-	initCUDA(DS);
+	cudaSetDevice(0);
+	initCUDA(size);
 	// Init GLEW functions
 	glewInit();
 
@@ -132,6 +134,11 @@ int main(void)
 	//SFML mainloop
 	while (app_window.isOpen()) {
 		CalculateFPS();
+		for (int i = 0; i < size; i++){
+			sd[i] = 0.f;
+			su[i] = 0.f;
+			sv[i] = 0.f;
+		}
 		auto delta = sim_clock.restart().asSeconds();
 		sf::Event event;
 		while (app_window.pollEvent(event)) {
@@ -167,15 +174,15 @@ int main(void)
 					if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
 						int i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
 						int j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
-						float dirX = (mouseX - mouseX0) * 300;
-						float dirY = (mouseY - mouseY0) * 300;
+						float dirX = (mouseX - mouseX0) * 100;
+						float dirY = (mouseY - mouseY0) * 100;
 
-						su[((i + 1) + DIM * j)] = dirX;
-						su[(i + DIM * j)] = dirX;
-						su[((i - 1) + DIM * j)] = dirX;
-						sv[((i + 1) + DIM * j)] = dirY;
-						sv[(i + DIM * j)] = dirY;
-						sv[((i - 1) + DIM * j)] = dirY;
+						su[index(i + 1,j)] = dirX;
+						su[index(i, j)] = dirX;
+						su[index(i - 1, j)] = dirX;
+						sv[index(i + 1, j)] = dirY;
+						sv[index(i, j)] = dirY;
+						sv[index(i - 1, j)] = dirY;
 
 						mouseX0 = mouseX;
 						mouseY0 = mouseY;
@@ -188,16 +195,14 @@ int main(void)
 			int i = (sf::Mouse::getPosition(app_window).x / static_cast<float>(WIDTH)) * DIM + 1;
 			int j = (sf::Mouse::getPosition(app_window).y / static_cast<float>(HEIGHT)) * DIM + 1;
 		
-			sd[((i+1) + DIM * j)] = 100.f;
-			sd[(i + DIM * j)] = 100.f;
-			sd[((i-1) + DIM * j)] = 100.f;
+			sd[index(i + 1, j)] = 100.f;
+			sd[index(i, j)] = 100.f;
+			sd[index(i - 1, j)] = 100.f;
 		}
 
 		step(DIM, 0.01f, 0.f, 0.f, 10, sd, su, sv);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		/*for (int i = 256; i < 276; i++){
-			std::cout << su[i] << std::endl;
-		}*/
+		
 
 		//// Particles
 		//glPushMatrix();
@@ -207,7 +212,7 @@ int main(void)
 		// Render Density
 		for (int i = 1; i < DIM-1; i++) {
 			for (int j = 1; j < DIM-1; j++) {
-				int cell_idx = i + DIM * j;
+				int cell_idx = index(i,j);
 
 				float density = sd[cell_idx];
 				float color;
@@ -217,10 +222,31 @@ int main(void)
 					glPushMatrix();
 					glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
 					glBegin(GL_QUADS);
-					glColor3f(1.f, 1.f, 1.f);
+					if (j < DIM - 1)
+						applyColor(sd[index(i, j + 1)],
+						su[index(i, j + 1)],
+						sv[index(i, j + 1)]);
+					else
+						applyColor(density, su[cell_idx], sv[cell_idx]);
 					glVertex2f(0.f, TILE_SIZE_Y);
+
+					applyColor(density, su[cell_idx], sv[cell_idx]);
 					glVertex2f(0.f, 0.f);
+
+					if (i < DIM - 1)
+						applyColor(sd[index(i + 1, j)],
+						su[index(i + 1, j)],
+						sv[index(i + 1, j)]);
+					else
+						applyColor(density, su[cell_idx], sv[cell_idx]);
 					glVertex2f(TILE_SIZE_X, 0.f);
+
+					if (i < DIM - 1 && j < DIM - 1)
+						applyColor(sd[index(i + 1, j + 1)],
+						su[index(i + 1, j + 1)],
+						sv[index(i + 1, j + 1)]);
+					else
+						applyColor(density, su[cell_idx], sv[cell_idx]);
 					glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
 					glEnd();
 					glPopMatrix();
@@ -310,4 +336,30 @@ void CalculateFPS()
 		frame_count = 0;
 
 	}
+}
+
+void applyColor(float x, float, float){
+	const float treshold1 = 1.;
+	const float treshold2 = 4.;
+	const float treshold3 = 10.;
+
+	/* red */
+	if (x < treshold1) {
+		glColor4f(CLAMP(x, 0., treshold1), 0., 0., 0.8);
+	}
+
+	/* yellow */
+	else if (x < treshold2) {
+		glColor4f(1., CLAMP(x, treshold1, treshold2) - treshold1, 0., 0.8);
+	}
+
+	/* white */
+	else if (x < treshold3){
+		glColor4f(1., 1., CLAMP(x, treshold2, treshold3) - treshold2, 0.8);
+	}
+
+	else{
+		glColor4f(1., 1., 1., 1.);
+	}
+
 }
