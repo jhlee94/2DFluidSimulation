@@ -1,12 +1,8 @@
 #pragma once
-#include <cuda_runtime.h>
-#include <stdio.h>
 #include "Fluid_Kernels.cuh"
-#include "device_launch_parameters.h"
-#include <iostream>
 
-#define index(i,j) ((i) * (DIM) *(j))
-#define SWAP(a0, a) {float *tmp = a0; a0 = a; a = tmp;}
+#define index(i,j) ((i) + (DIM) *(j))
+#define SWAP(x0, x) {float *tmp = x0; x0 = x; x = tmp;}
 
 //velocity and pressure
 float *d_u, *d_v;
@@ -159,30 +155,99 @@ __global__ void set_bnd_K(int size, int b, float *x) {
 	}
 }
 
-
-extern "C"
 void initCUDA(int size)
 {
 	cudaSetDevice(0);
-	cudaMalloc((void**)&d_div, size * sizeof(float));
-	cudaMalloc((void**)&d_d, size * sizeof(float));
-	cudaMalloc((void**)&d_d0, size * sizeof(float));
-	cudaMalloc((void**)&d_u, size * sizeof(float));
-	cudaMalloc((void**)&d_u0, size * sizeof(float));
-	cudaMalloc((void**)&d_v, size * sizeof(float));
-	cudaMalloc((void**)&d_v0, size * sizeof(float));
+	if (cudaMalloc((void**)&d_u, size * sizeof(float)) != cudaSuccess)
+	{
+		return;
+	}
+	if (cudaMalloc((void**)&d_u0, size * sizeof(float)) != cudaSuccess)
+	{
+		cudaFree(d_u);
+		return;
+	}
+	if (cudaMalloc((void**)&d_v, size * sizeof(float)) != cudaSuccess)
+	{
+		cudaFree(d_u);
+		cudaFree(d_u0);
+		return;
+	}
+	if (cudaMalloc((void**)&d_v0, size * sizeof(float)) != cudaSuccess)
+	{
+		cudaFree(d_u);
+		cudaFree(d_u0);
+		cudaFree(d_v);
+		return;
+	}
+	if (cudaMalloc((void**)&d_d, size * sizeof(float)) != cudaSuccess)
+	{
+		cudaFree(d_u);
+		cudaFree(d_u0);
+		cudaFree(d_v);
+		cudaFree(d_v0);
+		return;
+	}
+	if (cudaMalloc((void**)&d_d0, size * sizeof(float)) != cudaSuccess)
+	{
+		cudaFree(d_u);
+		cudaFree(d_u0);
+		cudaFree(d_v);
+		cudaFree(d_v0);
+		cudaFree(d_d);
+		return;
+	}
+	if (cudaMalloc((void**)&d_div, size * sizeof(float)) != cudaSuccess)
+	{
+		cudaFree(d_u);
+		cudaFree(d_u0);
+		cudaFree(d_v);
+		cudaFree(d_v0);
+		cudaFree(d_d);
+		cudaFree(d_d0);
+		return;
+	}
 
 	// Initialize our "previous" values of density and velocity to be all zero
-	cudaMemset(d_u, 0, size * sizeof(float));
-	cudaMemset(d_v, 0, size * sizeof(float));
-	cudaMemset(d_d, 0, size * sizeof(float));
-	cudaMemset(d_u0, 0, size * sizeof(float));
-	cudaMemset(d_v0, 0, size * sizeof(float));
-	cudaMemset(d_d0, 0, size * sizeof(float));
-	cudaMemset(d_div, 0, size * sizeof(float));
+	if(cudaMemset(d_u, 0, size * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+	if (cudaMemset(d_u0, 0, size * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+	if (cudaMemset(d_v, 0, size * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+	if (cudaMemset(d_v0, 0, size * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+	if (cudaMemset(d_d, 0, size * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+	if (cudaMemset(d_d0, 0, size * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+	if (cudaMemset(d_div, 0, size * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+
+	return;
 }
 
-extern "C"
 void freeCUDA()
 {
 	cudaFree(d_d);
@@ -192,13 +257,16 @@ void freeCUDA()
 	cudaFree(d_v);
 	cudaFree(d_v0);
 	cudaFree(d_div);
+
+	cudaDeviceReset();
 }
-extern "C"
-void diffuse(int size, int b, float *x, float *x0, float diff, int iteration)
+
+void diffuse(int size, int b, float *x, float *x0, float diff, int iteration, float dt)
 {
 	int N = (size - 2);
-	float a = 0.01f * diff * (float) N * (float) N;
+	float a = dt * diff * (float) N * (float) N;
 	float c = 1.f + 4.f *a;
+
 	for (int i = 0; i < iteration; i++)
 	{
 		redGauss_K<<<BLOCKS, THREADS>>>(size, x, x0, a, c);
@@ -207,10 +275,10 @@ void diffuse(int size, int b, float *x, float *x0, float diff, int iteration)
 	}
 
 	cudaDeviceSynchronize();
-	set_bnd_K<<<BLOCKS, THREADS>>>(size, b, x);
+	set_bnd_K<<<1, N>>>(size, b, x);
 	cudaDeviceSynchronize();
 }
-extern "C"
+
 void advect(int size, int b, float *d, float *d0, float *u, float *v, float dt)
 {
 	int N = (size - 2);
@@ -220,7 +288,7 @@ void advect(int size, int b, float *d, float *d0, float *u, float *v, float dt)
 	set_bnd_K<<<1, N >>>(size, b, d);
 	cudaDeviceSynchronize();
 }
-extern "C"
+
 void project(int size, float *u, float *v, float *p, float *div, int iteration)
 {
 	int N = (size - 2);
@@ -233,39 +301,39 @@ void project(int size, float *u, float *v, float *p, float *div, int iteration)
 
 	for (int k = 0; k < iteration; k++){
 		// Linear Solve
-		redGauss_K << <BLOCKS, THREADS >> >(size, p, div, 1, 4);
+		redGauss_K <<<BLOCKS, THREADS >>>(size, p, div, 1, 4);
 		cudaDeviceSynchronize();
-		blackGauss_K << <BLOCKS, THREADS >> >(size, p, div, 1, 4);
+		blackGauss_K <<<BLOCKS, THREADS >>>(size, p, div, 1, 4);
 		cudaDeviceSynchronize();
-		set_bnd_K << < BLOCKS, THREADS >> >(size, 0, p);
+		set_bnd_K <<< BLOCKS, THREADS >>>(size, 0, p);
 		cudaDeviceSynchronize();
 	}
 
-	subtractGradient_K << <BLOCKS, THREADS >> >(size, u, v, p);
+	subtractGradient_K <<<BLOCKS, THREADS >>>(size, u, v, p);
 	cudaDeviceSynchronize();
 	set_bnd_K<<<1, N >>>(size, 1, u);
 	set_bnd_K<<<1, N >>>(size, 2, v);
 	cudaDeviceSynchronize();
 }
 
-extern "C"
 void step(int size, float dt, float viscosity, float diffusion, int iteration, float *sd, float *su, float *sv)
 {
 	//if (dt != 0.01f);
 	//	//ddim.timestep = dt;
+
 	// Vel step
 	// Add Velocity Source
-	cudaMemcpy(d_u0, su, size*sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_v0, sv, size*sizeof(float), cudaMemcpyHostToDevice);
-	addSource_K <<<1, 1>>>(size, d_u, d_u0, dt);
-	cudaDeviceSynchronize();
-	addSource_K <<<1, 1>>>(size, d_v, d_v0, dt);
+	cudaError_t cudaStatus;
+	cudaMemcpy(d_u0, su, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_v0, sv, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
+	addSource_K <<<BLOCKS, THREADS>>>(size, d_u, d_u0, dt);
+	addSource_K <<<BLOCKS, THREADS>>>(size, d_v, d_v0, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_u0, d_u);
-	diffuse(size, 1, d_u, d_u0, viscosity, iteration);
+	diffuse(size, 1, d_u, d_u0, viscosity, iteration, dt);
 	SWAP(d_v0, d_v);
-	diffuse(size, 2, d_v, d_v0, viscosity, iteration);
+	diffuse(size, 2, d_v, d_v0, viscosity, iteration, dt);
 
 	project(size, d_u, d_v, d_u0, d_v0, iteration);
 
@@ -276,28 +344,36 @@ void step(int size, float dt, float viscosity, float diffusion, int iteration, f
 
 	project(size, d_u, d_v, d_u0, d_v0, iteration);
 
-	// Reset for next step
-	cudaMemset(d_u0, 0, size * sizeof(float));
-	cudaMemset(d_v0, 0, size * sizeof(float));
-
-
-	
 	// Density step
 	// Add Density Source
-	cudaMemcpy(d_d0, sd, size*sizeof(float), cudaMemcpyHostToDevice);
-	addSource_K <<<1, 1>>>(size, d_d, d_d0, dt);
+	cudaMemcpy(d_d0, sd, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
+	addSource_K <<<BLOCKS, THREADS>>>(size, d_d, d_d0, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_d0, d_d);
-	diffuse(size, 0, d_d, d_d0, diffusion, iteration);
+	diffuse(size, 0, d_d, d_d0, diffusion, iteration, dt);
 	SWAP(d_d0, d_d);
 	advect(size, 0, d_d, d_d0, d_u, d_v, dt);
 
-	// Reset for next Step
-	cudaMemset(d_d0, 0, size * sizeof(float));
-
-	cudaMemcpy(sd, d_d, size*sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(su, d_u, size*sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(sv, d_v, size*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(sd, d_d, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(su, d_u, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(sv, d_v, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaDeviceSynchronize();
+/*
+	if (cudaMemset(d_d0, 0, (size*size) * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+	if (cudaMemset(d_u0, 0, (size*size) * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}
+	if (cudaMemset(d_v0, 0, (size*size) * sizeof(float)) != cudaSuccess)
+	{
+		freeCUDA();
+		return;
+	}*/
 	return;
 }

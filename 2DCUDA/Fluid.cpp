@@ -18,9 +18,7 @@
 
 #include "config.h"
 #include "Fluid_Kernels.h"
-
-// Global Variable Init
-float *map;
+#define CLAMP(v, a, b) (a + (v - a) / (b - a))
 
 //sources
 float *sd, *su, *sv;
@@ -32,13 +30,12 @@ sf::Font* main_font;
 int mouseX0 = -10, mouseY0 = -10;
 
 // Cuda Kernels
-extern "C" void initCUDA(int size);
-extern "C" void freeCUDA();
-extern "C" void step(int size, float dt, float viscosity, float diffusion, int iteration, float *sd, float *su, float *sv);
+
 // Graphics Functions
 void DrawGrid(bool);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
+void applyColor(float x, float, float);
 
 int main(void)
 {
@@ -55,22 +52,16 @@ int main(void)
 	app_window.setActive();
 
 	// Initialise CUDA requirements
-	ddim.width = DIM;
-	ddim.timestep = 0.01f;
-	int size = DS;
 
-	// Init Fluid variables on Device side
-
-
-	std::cout << size << std::endl;
+	std::cout << DS << std::endl;
 	std::cout << TILE_SIZE_X << std::endl;
 
 	// Initialise Sources
-	sd = new float[size];
-	su = new float[size];
-	sv = new float[size];
+	sd = new float[DS];
+	su = new float[DS];
+	sv = new float[DS];
 
-	for (int i = 0; i < size; i++){
+	for (int i = 0; i < DS; i++){
 		sd[i] = 0.f;
 		su[i] = 0.f;
 		sv[i] = 0.f;
@@ -137,13 +128,14 @@ int main(void)
 		while (app_window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed) {
 				app_window.close();
+				freeCUDA();
 				break;
 			}
 			else if (event.type == sf::Event::Resized) {
 				glViewport(0, 0, event.size.width, event.size.height);
 				glMatrixMode(GL_PROJECTION);
 				glLoadIdentity();
-				glOrtho(0, 1, 1, 0, 0, 1);
+				glOrtho(0, 1, 0, 1, 0, 1);
 				glMatrixMode(GL_MODELVIEW);
 				glLoadIdentity();
 			}
@@ -164,7 +156,7 @@ int main(void)
 
 					int mouseX = event.mouseMove.x;
 					int mouseY = event.mouseMove.y;
-					if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
+					if ((mouseX > 0 && mouseX < WIDTH) && (mouseY > 0 && mouseY < HEIGHT)){
 						int i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
 						int j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
 						float dirX = (mouseX - mouseX0) * 300;
@@ -195,14 +187,6 @@ int main(void)
 
 		step(DIM, 0.01f, 0.f, 0.f, 10, sd, su, sv);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		/*for (int i = 256; i < 276; i++){
-			std::cout << su[i] << std::endl;
-		}*/
-
-		//// Particles
-		//glPushMatrix();
-		//DrawParticles(red_scale->GetValue(), green_scale->GetValue(), blue_scale->GetValue(), alpha_scale->GetValue());
-		//glPopMatrix();
 
 		// Render Density
 		for (int i = 1; i < DIM-1; i++) {
@@ -217,7 +201,7 @@ int main(void)
 					glPushMatrix();
 					glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
 					glBegin(GL_QUADS);
-					glColor3f(1.f, 1.f, 1.f);
+					applyColor(density, su[cell_idx], sv[cell_idx]);
 					glVertex2f(0.f, TILE_SIZE_Y);
 					glVertex2f(0.f, 0.f);
 					glVertex2f(TILE_SIZE_X, 0.f);
@@ -240,13 +224,15 @@ int main(void)
 		desktop.Update(delta);
 		sfgui.Display(app_window);
 		app_window.popGLStates();
-
 		// Finally, Display all
 		app_window.display();
 		//glFlush();
+		for (int i = 0; i < DS; i++){
+			sd[i] = 0.f;
+			su[i] = 0.f;
+			sv[i] = 0.f;
+		}
 	}
-
-	freeCUDA();
 	delete main_font;
 	delete[] sd, sv, su;
 	return 0;
@@ -310,4 +296,30 @@ void CalculateFPS()
 		frame_count = 0;
 
 	}
+}
+
+void applyColor(float x, float, float){
+	const float treshold1 = 1.;
+	const float treshold2 = 4.;
+	const float treshold3 = 10.;
+
+	/* red */
+	if (x < treshold1) {
+		glColor4f(CLAMP(x, 0., treshold1), 0., 0., 0.8);
+	}
+
+	/* yellow */
+	else if (x < treshold2) {
+		glColor4f(1., CLAMP(x, treshold1, treshold2) - treshold1, 0., 0.8);
+	}
+
+	/* white */
+	else if (x < treshold3){
+		glColor4f(1., 1., CLAMP(x, treshold2, treshold3) - treshold2, 0.8);
+	}
+
+	else{
+		glColor4f(1., 1., 1., 1.);
+	}
+
 }

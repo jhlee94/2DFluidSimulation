@@ -21,12 +21,9 @@ int mouseX0 = 0, mouseY0 = 0;
 
 // FluidSolver
 Fluid2DCPU* fluid_solver;
-Vector2F* particles = NULL;
 
 void DrawGrid(bool);
 void CreateGUI(sfg::Desktop& desktop);
-void InitParticles(Vector2F *p, int dx, int dy);
-void DrawParticles(float r, float g, float b, float a = 1.f);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
 void applyColor(float x, float, float);
@@ -42,7 +39,7 @@ int main()
 	//app_window.setVerticalSyncEnabled(true);
 	main_font = new sf::Font;
 	main_font->loadFromFile("../Resources/arial.ttf");
-	fluid_solver = new Fluid2DCPU(TILE_DIM);
+	fluid_solver = new Fluid2DCPU(DIM);
 	// Create an SFGUI. This is required before doing anything with SFGUI.
 	sfg::SFGUI sfgui;
 	// Set the SFML Window's context back to the active one. SFGUI creates
@@ -79,10 +76,10 @@ int main()
 	sfg::Desktop desktop;
 	desktop.Add(window);
 
-	viscosity_scale->SetValue(.0001f);
-	diffusion_scale->SetValue(0.0002f);
-	solver_scale->SetValue(20.f);
-	dt_scale->SetValue(0.1f);
+	viscosity_scale->SetValue(0.f);
+	diffusion_scale->SetValue(0.f);
+	solver_scale->SetValue(10.f);
+	dt_scale->SetValue(0.01f);
 
 	// Init GLEW functions
 	glewInit();
@@ -95,11 +92,6 @@ int main()
 	glOrtho(0, 1, 1, 0, 0, 1);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-
-
-	// Init Particles
-	particles = new Vector2F[(DIM*DIM)];
-	InitParticles(particles, DIM, DIM);
 
 	// FPS init
 	sf::Text fps_text;
@@ -137,8 +129,8 @@ int main()
 				if (event.type == sf::Event::MouseButtonPressed)
 				{
 					
-					int i = (event.mouseButton.x / static_cast<float>(WIDTH)) * TILE_DIM + 1;
-					int j = (event.mouseButton.y / static_cast<float>(HEIGHT)) * TILE_DIM + 1;
+					int i = (event.mouseButton.x / static_cast<float>(WIDTH)) * DIM + 1;
+					int j = (event.mouseButton.y / static_cast<float>(HEIGHT)) * DIM + 1;
 				}
 
 				if (event.type == sf::Event::MouseMoved)
@@ -147,10 +139,10 @@ int main()
 					int mouseX = event.mouseMove.x;
 					int mouseY = event.mouseMove.y;
 					if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
-						int i = (mouseX / static_cast<float>(WIDTH)) * TILE_DIM + 1;
-						int j = (mouseY / static_cast<float>(HEIGHT)) * TILE_DIM + 1;
-						float dirX = (mouseX - mouseX0) * 1.5;
-						float dirY = (mouseY - mouseY0) * 1.5;
+						int i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
+						int j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
+						float dirX = (mouseX - mouseX0) * 300;
+						float dirY = (mouseY - mouseY0) * 300;
 						fluid_solver->u_prev[fluid_solver->index(i, j)] = dirX;
 						fluid_solver->v_prev[fluid_solver->index(i, j)] = dirY;
 
@@ -174,22 +166,11 @@ int main()
 		}
 
 		if (sf::Mouse::isButtonPressed(sf::Mouse::Left)){
-			int i = (sf::Mouse::getPosition(app_window).x / static_cast<float>(WIDTH)) * TILE_DIM + 1;
-			int j = (sf::Mouse::getPosition(app_window).y / static_cast<float>(HEIGHT)) * TILE_DIM + 1;
+			int i = (sf::Mouse::getPosition(app_window).x / static_cast<float>(WIDTH)) * DIM + 1;
+			int j = (sf::Mouse::getPosition(app_window).y / static_cast<float>(HEIGHT)) * DIM + 1;
 			fluid_solver->dens_prev[fluid_solver->index(i, j)] = 100.f;
-			//fluid_solver->dens_prev[fluid_solver->index(i - 1, j)] = 50.f;
-			//fluid_solver->dens_prev[fluid_solver->index(i + 1, j)] = 50.f;
-
-			fluid_solver->u_prev[fluid_solver->index(i, j)] = 0.f;
-			fluid_solver->v_prev[fluid_solver->index(i, j)] = -3.0f;
-			fluid_solver->u_prev[fluid_solver->index(i + 1, j)] = 0.f;
-			fluid_solver->v_prev[fluid_solver->index(i + 1, j)] = -3.0f;
-			fluid_solver->u_prev[fluid_solver->index(i - 1, j)] = 0.f;
-			fluid_solver->v_prev[fluid_solver->index(i - 1, j)] = -3.0f;
-			fluid_solver->u_prev[fluid_solver->index(i, j + 1)] = 0.f;
-			fluid_solver->v_prev[fluid_solver->index(i, j + 1)] = -3.0f;
-			fluid_solver->u_prev[fluid_solver->index(i, j - 1)] = 0.f;
-			fluid_solver->v_prev[fluid_solver->index(i, j - 1)] = -3.0f;
+			fluid_solver->dens_prev[fluid_solver->index(i - 1, j)] = 100.f;
+			fluid_solver->dens_prev[fluid_solver->index(i + 1, j)] = 100.f;
 		}
 		
 		fluid_solver->m_viscosity = viscosity_scale->GetValue();
@@ -197,16 +178,11 @@ int main()
 		fluid_solver->iteration = solver_scale->GetValue();
 
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-		//// Particles
-		//glPushMatrix();
-		//DrawParticles(red_scale->GetValue(), green_scale->GetValue(), blue_scale->GetValue(), alpha_scale->GetValue());
-		//glPopMatrix();
 		
 		// Render Density
 		fluid_solver->step(dt_scale->GetValue());
-		for (int i = 1; i <= TILE_DIM; i++) {
-			for (int j = 1; j <= TILE_DIM; j++) {
+		for (int i = 1; i <= DIM; i++) {
+			for (int j = 1; j <= DIM; j++) {
 				int cell_idx = fluid_solver->index(i, j);
 
 				float density = fluid_solver->dens[cell_idx];
@@ -218,7 +194,7 @@ int main()
 					glTranslatef(i*TILE_SIZE_X - TILE_SIZE_X, j*TILE_SIZE_Y - TILE_SIZE_Y, 0);
 					glBegin(GL_QUADS);
 					
-					if (j < TILE_DIM - 1)
+					if (j < DIM - 1)
 						applyColor(fluid_solver->dens[fluid_solver->index(i, j+1)], 
 								   fluid_solver->u[fluid_solver->index(i, j+1)], 
 								   fluid_solver->v[fluid_solver->index(i, j+1)]);
@@ -229,14 +205,14 @@ int main()
 					applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
 					glVertex2f(0.f, 0.f);
 
-					if (i < TILE_DIM - 1)
+					if (i < DIM - 1)
 						applyColor(fluid_solver->dens[fluid_solver->index(i + 1, j)], 
 								   fluid_solver->u[fluid_solver->index(i + 1, j)], 
 								   fluid_solver->v[fluid_solver->index(i + 1, j)]);
 					else
 						applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
 					glVertex2f(TILE_SIZE_X, 0.f);
-					if (i < TILE_DIM - 1 && j < TILE_DIM - 1)
+					if (i < DIM - 1 && j < DIM - 1)
 						applyColor(fluid_solver->dens[fluid_solver->index(i + 1, j + 1)],
 						fluid_solver->u[fluid_solver->index(i + 1, j + 1)],
 						fluid_solver->v[fluid_solver->index(i + 1, j + 1)]);
@@ -268,9 +244,6 @@ int main()
 	}
 
 	// cleanup
-	delete[] particles;
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-	glDeleteBuffersARB(1, &vbo);
 	delete main_font;
 	delete fluid_solver;
 	return 0;
@@ -290,13 +263,13 @@ void DrawGrid(bool x)
 	if (x)
 	{
 		glColor4f(0.f, 1.f, 0.f, 1.f);
-		for (float x = (static_cast<float>(WIDTH) / TILE_DIM) / static_cast<float>(WIDTH); x < 1; x += (static_cast<float>(WIDTH) / TILE_DIM) / static_cast<float>(WIDTH)){
+		for (float x = (static_cast<float>(WIDTH) / DIM) / static_cast<float>(WIDTH); x < 1; x += (static_cast<float>(WIDTH) / DIM) / static_cast<float>(WIDTH)){
 			glBegin(GL_LINES);
 			glVertex2f(0, x);
 			glVertex2f(1, x);
 			glEnd();
 		};
-		for (float y = (static_cast<float>(HEIGHT) / TILE_DIM) / static_cast<float>(HEIGHT); y < 1; y += (static_cast<float>(HEIGHT) / TILE_DIM) / static_cast<float>(HEIGHT)){
+		for (float y = (static_cast<float>(HEIGHT) / DIM) / static_cast<float>(HEIGHT); y < 1; y += (static_cast<float>(HEIGHT) / DIM) / static_cast<float>(HEIGHT)){
 			glBegin(GL_LINES);
 			glVertex2f(y, 0);
 			glVertex2f(y, 1);
@@ -324,52 +297,6 @@ float myrand(void)
 	{
 		return rand() / (float)RAND_MAX;
 	}
-}
-
-void InitParticles(Vector2F *p, int dx, int dy)
-{
-	int i, j;
-	GLint bsize;
-
-	for (i = 0; i < dy; i++)
-	{
-		for (j = 0; j < dx; j++)
-		{
-			p[i*dx + j].x = (j + 0.5f + (myrand() - 0.5f)) / dx;
-			p[i*dx + j].y = (i + 0.5f + (myrand() - 0.5f)) / dy;
-		}
-	}
-
-	glGenBuffersARB(1, &vbo);
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo);
-	glBufferDataARB(GL_ARRAY_BUFFER_ARB, sizeof(Vector2F)* (DIM*DIM),
-		particles, GL_DYNAMIC_DRAW_ARB);
-
-	glGetBufferParameterivARB(GL_ARRAY_BUFFER_ARB, GL_BUFFER_SIZE_ARB, &bsize);
-
-	if (bsize != (sizeof(Vector2F)* DS))
-		std::cout << "Error Initialising Particles" << std::endl;
-
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-}
-
-void DrawParticles(float r, float g, float b, float a)
-{
-    glColor4f(r,g,b,a);
-    glPointSize(1);
-    glEnable(GL_POINT_SMOOTH);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-    glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo);
-    glVertexPointer(2, GL_FLOAT, 0, NULL);
-    glDrawArrays(GL_POINTS, 0, DS);
-    glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisable(GL_TEXTURE_2D);
 }
 
 void PrintString(float x, float y, sf::Text& text, const char* string, ...)
