@@ -81,8 +81,8 @@ int main()
 
 	viscosity_scale->SetValue(0.f);
 	diffusion_scale->SetValue(0.f);
-	solver_scale->SetValue(20.f);
-	dt_scale->SetValue(0.1f);
+	solver_scale->SetValue(10.f);
+	dt_scale->SetValue(0.01f);
 
 	// Init GLEW functions
 	glewInit();
@@ -97,9 +97,9 @@ int main()
 	glLoadIdentity();
 
 
-	// Init Particles
-	particles = new Vector2F[(DIM*DIM)];
-	InitParticles(particles, DIM, DIM);
+	//// Init Particles
+	//particles = new Vector2F[(DIM*DIM)];
+	//InitParticles(particles, DIM, DIM);
 
 	// FPS init
 	sf::Text fps_text;
@@ -269,9 +269,9 @@ int main()
 	}
 
 	// cleanup
-	delete[] particles;
+	/*delete[] particles;
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-	glDeleteBuffersARB(1, &vbo);
+	glDeleteBuffersARB(1, &vbo);*/
 	delete main_font;
 	delete fluid_solver;
 	return 0;

@@ -77,7 +77,6 @@ int main(void)
 		su[i] = 0.f;
 		sv[i] = 0.f;
 	}
-	cudaSetDevice(0);
 	initCUDA(size);
 	// Init GLEW functions
 	glewInit();
@@ -209,7 +208,51 @@ int main(void)
 		//DrawParticles(red_scale->GetValue(), green_scale->GetValue(), blue_scale->GetValue(), alpha_scale->GetValue());
 		//glPopMatrix();
 
-		// Render Density
+		//// Render Density
+		//for (int i = 0; i < DS; i++)
+		//{
+		//	int x = i / DIM;
+		//	int y = i % DIM;
+		//	int cell_idx = index(x, y);
+
+		//	float density = sd[i];
+		//	float color;
+		//	if (density > 0)
+		//	{
+		//		//color = std::fmod(density, 100.f) / 100.f;
+		//		glPushMatrix();
+		//		glTranslatef(x*TILE_SIZE_X, y*TILE_SIZE_Y, 0);
+		//		glBegin(GL_QUADS);
+		//		if (y < DIM - 1)
+		//			applyColor(sd[index(x, y + 1)],
+		//			su[index(x, y + 1)],
+		//			sv[index(x, y + 1)]);
+		//		else
+		//			applyColor(density, su[cell_idx], sv[cell_idx]);
+		//		glVertex2f(0.f, TILE_SIZE_Y);
+
+		//		applyColor(density, su[cell_idx], sv[cell_idx]);
+		//		glVertex2f(0.f, 0.f);
+
+		//		if (x < DIM - 1)
+		//			applyColor(sd[index(x + 1, y)],
+		//			su[index(x + 1, y)],
+		//			sv[index(x + 1, y)]);
+		//		else
+		//			applyColor(density, su[cell_idx], sv[cell_idx]);
+		//		glVertex2f(TILE_SIZE_X, 0.f);
+
+		//		if (x < DIM - 1 && y < DIM - 1)
+		//			applyColor(sd[index(x + 1, y + 1)],
+		//			su[index(x + 1, y + 1)],
+		//			sv[index(x + 1, y + 1)]);
+		//		else
+		//			applyColor(density, su[cell_idx], sv[cell_idx]);
+		//		glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
+		//		glEnd();
+		//		glPopMatrix();
+		//	}
+		//}
 		for (int i = 1; i < DIM-1; i++) {
 			for (int j = 1; j < DIM-1; j++) {
 				int cell_idx = index(i,j);

@@ -162,6 +162,7 @@ __global__ void set_bnd_K(int size, int b, float *x) {
 extern "C"
 void initCUDA(int dim)
 {
+	cudaSetDevice(0);
 	cudaMalloc((void**)&d_div, dim * sizeof(float));
 	cudaMalloc((void**)&d_d, dim * sizeof(float));
 	cudaMalloc((void**)&d_d0, dim * sizeof(float));
