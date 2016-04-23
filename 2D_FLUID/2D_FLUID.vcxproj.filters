@@ -21,12 +21,18 @@
     <ClInclude Include="Fluid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cFluidPanel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Fluid.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidPanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

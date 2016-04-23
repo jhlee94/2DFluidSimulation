@@ -3,10 +3,12 @@ struct Vector2F
 	float x, y;
 };
 
-#define WIDTH 512
-#define HEIGHT 512
-#define DIM 512
+#define WIDTH 1024
+#define HEIGHT 768
+
+#define GRID_WIDTH 512
+#define GRID_HEIGHT 512
+#define DIM 256
 #define DS (DIM * DIM)
-#define TILE_DIM 256
-#define TILE_SIZE_X (float) (WIDTH/TILE_DIM) / WIDTH
-#define TILE_SIZE_Y (float) (HEIGHT/TILE_DIM) / HEIGHT
+#define TILE_SIZE_X (float) (GRID_WIDTH/DIM) //
+#define TILE_SIZE_Y (float) (GRID_HEIGHT/DIM) //

@@ -1,7 +1,42 @@
-#pragma once
 #include "Fluid.h"
 
 #define SWAP(x0, x) {float *tmp = x0; x0 = x; x = tmp;}
+
+void Fluid2DCPU::Initialise(unsigned int N)
+{
+	dim = N;
+	dim2 = (N + 2) * (N + 2);
+	u = new float[dim2];
+	v = new float[dim2];
+	dens = new float[dim2];
+
+	u_prev = new float[dim2];
+	v_prev = new float[dim2];
+	dens_prev = new float[dim2];
+	m_curl = new float[dim2];
+
+	m_parameters.iterations = 10;
+	m_parameters.dt = 0.01f;
+	m_parameters.kappa = 0.3f;
+	m_parameters.sigma = 0.f;
+	m_parameters.diffusion = 0.f;
+	m_parameters.viscosity = 0.f;
+	m_parameters.vorticity = true;
+	m_parameters.buoyancy = true;
+
+	//Initialise all to zero
+	for (unsigned int i = 0; i < dim2; i++)
+	{
+		u[i] = 0.f;
+		v[i] = 0.f;
+		dens[i] = 0.f;
+		u_prev[i] = 0.f;
+		v_prev[i] = 0.f;
+		dens_prev[i] = 0.f;
+		m_curl[i] = 0.f;
+	}
+
+}
 
 int Fluid2DCPU::index(int i, int j)
 {
@@ -35,7 +70,7 @@ void Fluid2DCPU::linearSolve(int b, float* x, float* x0, float a, float c)
 {
 	int i, j, k;
 	float invC = 1.f / c;
-	for (k = 0; k < iteration; k++) {
+	for (k = 0; k < m_parameters.iterations; k++) {
 		for (i = 1; i <= dim; i++) {
 			for (j = 1; j <= dim; j++) {
 				x[index(i, j)] =
@@ -52,34 +87,51 @@ void Fluid2DCPU::linearSolve(int b, float* x, float* x0, float a, float c)
 
 float Fluid2DCPU::curl(int i, int j)
 {
-	float du_dy = (u[index(i, j + 1)] - u[index(i, j - 1)]) * 0.5f;
-	float dv_dx = (v[index(i + 1, j)] - v[index(i - 1, j)]) * 0.5f;
+	float h = 1.0f / dim;
+	float du_dy = (u[index(i, j + 1)] - u[index(i, j - 1)]) /h * 0.5f;
+	float dv_dx = (v[index(i + 1, j)] - v[index(i - 1, j)]) /h * 0.5f;
 
-	return du_dy - dv_dx;
+	return dv_dx - du_dy;
 }
 
-void Fluid2DCPU::vort_conf(float *u, float *v)
+void Fluid2DCPU::vort_conf(float *u, float *v, float vort_str, float dt)
 {
 	float dw_dx, dw_dy;
 	float length;
-	float vort;
+	float vortx, vorty;
+	float h = 1.0f / dim;
 
+	for (int i = 0; i < dim2; i++)
+	{
+		int x = i % (dim + 2);
+		int y = i / (dim + 2);
+		if (x<1 || x>dim || y<1 || y>dim) {}
+		else{
+			m_curl[i] = curl(x, y);
+		}
+	}/*
 	for (int i = 1; i <= dim; i++)
 	{
 		for (int j = 1; j <= dim; j++)
 		{
-			m_curl[index(i, j)] = fabs(curl(i,j));
+			m_curl[i] = curl(i, j);
 		}
-	}
+	}*/
 
-	for (int i = 2; i < dim; i++)
+	for (int i = 1; i < dim; i++)
 	{
-		for (int j = 2; j < dim; j++)
+		for (int j = 1; j < dim; j++)
 		{
 
 			// Find derivative of the magnitude (n = del |w|)
-			dw_dx = (m_curl[index(i + 1, j)] - m_curl[index(i - 1, j)]) * 0.5f;
-			dw_dy = (m_curl[index(i, j + 1)] - m_curl[index(i, j - 1)]) * 0.5f;
+			float omegaT = m_curl[index(i, j - 1)];
+			float omegaB = m_curl[index(i, j + 1)];
+			float omegaR = m_curl[index(i + 1, j)];
+			float omegaL = m_curl[index(i - 1, j)];
+
+			float dw_dx = ((omegaR - omegaL) * 0.5f) /h;
+			float dw_dy = ((omegaT - omegaB) * 0.5f) /h;
+
 
 			// Calculate vector length. (|n|)
 			// Add small factor to prevent divide by zeros.
@@ -90,11 +142,25 @@ void Fluid2DCPU::vort_conf(float *u, float *v)
 			dw_dx /= length;
 			dw_dy /= length;
 
-			vort = curl(i, j);
+			vortx = -curl(i, j) * dw_dx * vort_str;
+			vorty = curl(i, j) * dw_dy * vort_str;
 
 			// N x w
-			v[index(i, j)] = dw_dy * -vort;
-			u[index(i, j)] = dw_dx *  vort;
+			u[index(i, j)] += vortx * dt;
+			v[index(i, j)] += vorty * dt;
+		}
+	}
+	set_bnd(1, u);
+	set_bnd(2, v);
+}
+
+void Fluid2DCPU::buoyancy(float *d, float *s, float kappa, float sigma)
+{
+	unsigned int i, j;
+
+	for (i = 1; i <= dim; i++) {
+		for (j = 1; j <= dim; j++) {
+			d[index(i, j)] = sigma*s[index(i, j)] + -kappa*s[index(i, j)];
 		}
 	}
 }
@@ -181,15 +247,19 @@ void Fluid2DCPU::dens_step(float *x, float *x0, float *u, float *v, float diff, 
 
 }
 
-void Fluid2DCPU::vel_step(float* u, float *v, float *u0, float *v0, float viscosity, float dt)
+void Fluid2DCPU::vel_step(float* u, float *v, float *u0, float *v0, float viscosity, float kappa, float sigma, float dt)
 {
 	addSource(u, u0, dt);
 	addSource(v, v0, dt);
 
-	if (vorticity)
+	if (m_parameters.vorticity)
 	{
-		vort_conf(u0, v0);
-		addSource(u, u0, dt);
+		vort_conf(u, v, 0.01f, dt);
+	}
+
+	if (m_parameters.buoyancy)
+	{
+		buoyancy(v0, dens, kappa, sigma);
 		addSource(v, v0, dt);
 	}
 
@@ -205,23 +275,21 @@ void Fluid2DCPU::vel_step(float* u, float *v, float *u0, float *v0, float viscos
 	advect(1, u, u0, u0, v0, dt);
 	advect(2, v, v0, u0, v0, dt);
 
+
 	project(u, v, u0, v0);
 }
 
 
-void Fluid2DCPU::step(float dt)
+void Fluid2DCPU::step()
 {
-	vel_step(u, v, u_prev, v_prev, m_viscosity, dt);
-	// Reset for next step
-	for (int i = 0; i < dim2; i++) {
-		u_prev[i] = 0;
-		v_prev[i] = 0;
-	}
-	
-	dens_step(dens, dens_prev, u, v, m_diffusion, dt);
+	vel_step(u, v, u_prev, v_prev, m_parameters.viscosity, m_parameters.kappa, m_parameters.sigma, m_parameters.dt);
+	dens_step(dens, dens_prev, u, v, m_parameters.diffusion, m_parameters.dt);
 
 	// Reset for next step
-	for (int i = 0; i < dim2; i++) {
-		dens_prev[i] = 0;
+	for (unsigned int i = 0; i < dim2; i++)
+	{
+		dens_prev[i] = 0.f;
+		u_prev[i] = 0.f;
+		v_prev[i] = 0.f;
 	}
 }

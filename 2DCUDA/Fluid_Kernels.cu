@@ -1,9 +1,5 @@
 #pragma once
-#include <cuda_runtime.h>
-#include <stdio.h>
 #include "Fluid_Kernels.cuh"
-#include "device_launch_parameters.h"
-#include <iostream>
 
 #define index(i,j) ((i) + (DIM) *(j))
 #define SWAP(a0, a) {float *tmp = a0; a0 = a; a = tmp;}
@@ -11,7 +7,7 @@
 //velocity and pressure
 float *d_u, *d_v;
 float *d_u0, *d_v0;
-
+float *d_curl;
 //divergence of velocity
 float *d_div;
 
@@ -20,9 +16,9 @@ float *d_d, *d_d0;
 
 __global__ void addSource_K(int size, float *d, float *s, float dt) {
 	int gtidx = blockIdx.x * blockDim.x + threadIdx.x;
-	int i =  gtidx % size;
+	int i = gtidx % size;
 	int j = gtidx / size;
-	int N = (256 - 2);
+	int N = (size - 2);
 
 	// Skip Boundary values
 	if (i<1 || i>N || j<1 || j>N) return;
@@ -30,10 +26,26 @@ __global__ void addSource_K(int size, float *d, float *s, float dt) {
 	d[gtidx] += dt * s[gtidx];
 }
 
+
+__global__ void addConstantSource_K(int size, float* x, int i, int j, float value, float dt)
+{
+	int N = (size - 2);
+
+	// Skip Boundary values
+	if (i<1 || i>N || j<1 || j>N) return;
+
+	x[index(i, j)] += value *dt;
+
+	x[index(i+1, j)] += value *dt;
+	x[index(i-1, j)] += value *dt;
+	x[index(i + 2, j)] += value *dt;
+	x[index(i - 2, j)] += value *dt;
+}
+
 __global__ void advect_K(int size, float *d, float *d0, float *u, float *v, float dt) {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int j = (int)gtidx / (size);
-	int i = (int)gtidx - (j*size);
+	int i = gtidx % size;
+	int j = gtidx / size;
 	int N = (size - 2);
 	
 	int i0, j0, i1, j1;
@@ -70,8 +82,8 @@ __global__ void advect_K(int size, float *d, float *d0, float *u, float *v, floa
 __global__ void redGauss_K(int size, float *x, float *x0, float a, float c)
 {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int j = (int)gtidx / (size);
-	int i = (int)gtidx - (j*size);
+	int i = gtidx % size;
+	int j = gtidx / size;
 	float invC = 1.f / c;
 	int N = (size - 2);
 
@@ -86,8 +98,8 @@ __global__ void redGauss_K(int size, float *x, float *x0, float a, float c)
 __global__ void blackGauss_K(int size, float *x, float *x0, float a, float c)
 {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int j = (int)gtidx / (size);
-	int i = (int)gtidx - (j*size);
+	int i = gtidx % size;
+	int j = gtidx / size;
 	float invC = 1.f / c;
 	int N = (size - 2);
 
@@ -101,9 +113,8 @@ __global__ void blackGauss_K(int size, float *x, float *x0, float a, float c)
 
 __global__ void divergence_K(int size, float* u, float* v, float* p, float* div) {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int width = size;
-	int i = gtidx % width;
-	int j = gtidx / width;
+	int i = gtidx % size;
+	int j = gtidx / size;
 
 	int N = (size - 2);
 
@@ -120,9 +131,8 @@ __global__ void divergence_K(int size, float* u, float* v, float* p, float* div)
 __global__ void subtractGradient_K(int size, float *u, float *v, float *p)
 {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
-	int width = size;
-	int i = gtidx % width;
-	int j = gtidx / width;
+	int i = gtidx % size;
+	int j = gtidx / size;
 
 	// Skip Boundary values
 
@@ -135,6 +145,72 @@ __global__ void subtractGradient_K(int size, float *u, float *v, float *p)
 		u[index(i, j)] -= 0.5*(p[index(i + 1, j)] - p[index(i - 1, j)]) / h;
 		v[index(i, j)] -= 0.5*(p[index(i, j + 1)] - p[index(i, j - 1)]) / h;
 	
+}
+
+__global__ void curl_K(int size, float *u, float *v, float *curl)
+{
+	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
+	int i = gtidx % size;
+	int j = gtidx / size;
+
+	// Skip Boundary values
+	int N = (size - 2);
+	if (i<1 || i>N || j<1 || j>N) return;
+
+	float h = 1.0f / N;
+	float du_dy;
+	float dv_dx;
+
+	du_dy = (u[index(i, j + 1)] - u[index(i, j - 1)]) /h * 0.5f;
+	dv_dx = (v[index(i + 1, j)] - v[index(i - 1, j)]) /h * 0.5f;
+
+	curl[index(i, j)] = (dv_dx - du_dy);
+}
+
+__global__ void vorticity_K(int size, float *u, float *v, float *curl, float vort_str, float dt)
+{
+	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
+	int i = gtidx % size;
+	int j = gtidx / size;
+
+	// Skip Boundary values
+	int N = (size - 2);
+	if (i<1 || i>N || j<1 || j>N) return;
+
+	float h = 1.0f / N;
+
+	float vort;
+
+	float omegaT = curl[index(i, j - 1)];
+	float omegaB = curl[index(i, j + 1)];
+	float omegaR = curl[index(i + 1, j)];
+	float omegaL = curl[index(i - 1, j)];
+
+	float dw_dx = (omegaR - omegaL) * 0.5f;
+	float dw_dy = (omegaT - omegaB) * 0.5f;
+	float2 force; force.x = dw_dy; force.y = dw_dx; force /= h;
+	force /= (length(force) + 0.000001f);
+	
+	float2 newVec;
+	newVec.x = -curl[index(i, j)] * force.y;
+	newVec.y = curl[index(i, j)] * force.x;
+	newVec *= vort_str;
+	u[index(i, j)] += newVec.x * dt;
+	v[index(i, j)] += newVec.y * dt;
+
+}
+
+__global__ void buoyancy_K(int size, float *d, float *s, float kappa, float sigma)
+{
+	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
+	int i = (int)gtidx % size;
+	int j = (int)gtidx / size;
+	int N = (size - 2);
+
+	// Skip Boundary values
+	if (i<1 || i>N || j<1 || j>N) return;
+
+	d[index(i, j)] = sigma*s[index(i, j)] + -kappa* s[index(i, j)];
 }
 
 __global__ void set_bnd_K(int size, int b, float *x) {
@@ -170,6 +246,7 @@ void initCUDA(int dim)
 	cudaMalloc((void**)&d_u0, dim * sizeof(float));
 	cudaMalloc((void**)&d_v, dim * sizeof(float));
 	cudaMalloc((void**)&d_v0, dim * sizeof(float));
+	cudaMalloc((void**)&d_curl, dim * sizeof(float));
 
 	// Initialize our "previous" values of density and velocity to be all zero
 	cudaMemset(d_u, 0, dim * sizeof(float));
@@ -179,6 +256,7 @@ void initCUDA(int dim)
 	cudaMemset(d_v0, 0, dim * sizeof(float));
 	cudaMemset(d_d0, 0, dim * sizeof(float));
 	cudaMemset(d_div, 0, dim * sizeof(float));
+	cudaMemset(d_curl, 0, dim * sizeof(float));
 }
 
 extern "C"
@@ -191,6 +269,7 @@ void freeCUDA()
 	cudaFree(d_v);
 	cudaFree(d_v0);
 	cudaFree(d_div);
+	cudaFree(d_curl);
 
 	cudaDeviceReset();
 }
@@ -208,7 +287,7 @@ void diffuse(int size, int b, float *x, float *x0, float diff, int iteration)
 	}
 
 	cudaDeviceSynchronize();
-	set_bnd_K<<<BLOCKS, THREADS>>>(size, b, x);
+	set_bnd_K<<<1, N>>>(size, b, x);
 	cudaDeviceSynchronize();
 }
 
@@ -216,7 +295,7 @@ void advect(int size, int b, float *d, float *d0, float *u, float *v, float dt)
 {
 	int N = (size - 2);
 
-	advect_K<<<BLOCKS, THREADS >>>(size, d, d0, u, v, dt);
+	advect_K<<<BLOCKS, THREADS>>>(size, d, d0, u, v, dt);
 	cudaDeviceSynchronize();
 	set_bnd_K<<<1, N >>>(size, b, d);
 	cudaDeviceSynchronize();
@@ -226,7 +305,7 @@ void project(int size, float *u, float *v, float *p, float *div, int iteration)
 {
 	int N = (size - 2);
 
-	divergence_K<<<BLOCKS, THREADS >>>(size, u, v, p, div);
+	divergence_K<<<BLOCKS, THREADS>>>(size, u, v, p, div);
 	cudaDeviceSynchronize();
 	set_bnd_K<<<1, N >>>(size, 0, div);
 	set_bnd_K<<<1, N >>>(size, 0, p);
@@ -234,15 +313,15 @@ void project(int size, float *u, float *v, float *p, float *div, int iteration)
 
 	for (int k = 0; k < iteration; k++){
 		// Linear Solve
-		redGauss_K << <BLOCKS, THREADS >> >(size, p, div, 1, 4);
+		redGauss_K<<<BLOCKS, THREADS>>>(size, p, div, 1, 4);
 		cudaDeviceSynchronize();
-		blackGauss_K << <BLOCKS, THREADS >> >(size, p, div, 1, 4);
+		blackGauss_K<<<BLOCKS, THREADS>>>(size, p, div, 1, 4);
 		cudaDeviceSynchronize();
-		set_bnd_K << < BLOCKS, THREADS >> >(size, 0, p);
+		set_bnd_K<<<1, N>>>(size, 0, p);
 		cudaDeviceSynchronize();
 	}
 
-	subtractGradient_K << <BLOCKS, THREADS >> >(size, u, v, p);
+	subtractGradient_K<<<BLOCKS, THREADS>>>(size, u, v, p);
 	cudaDeviceSynchronize();
 	set_bnd_K<<<1, N >>>(size, 1, u);
 	set_bnd_K<<<1, N >>>(size, 2, v);
@@ -250,16 +329,50 @@ void project(int size, float *u, float *v, float *p, float *div, int iteration)
 }
 
 extern "C"
-void step(int size, float dt, float viscosity, float diffusion, int iteration, float *sd, float *su, float *sv)
+void step(int size,
+		  float dt, 
+		  float viscosity, 
+		  float diffusion, 
+		  float kappa, 
+		  float sigma, 
+		  int iteration,
+		  float *sd,
+		  float s_v_i,
+		  float s_v_j,
+		  float s_d_i,
+		  float s_d_j,
+		  float s_d_val,
+		  float s_u_val,
+		  float s_v_val)
 {
+	int N = (size - 2);
 	// Vel step
 	// Add Velocity Source
-	cudaMemcpy(d_u0, su, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_v0, sv, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
-	addSource_K <<<BLOCKS, THREADS>>>(size, d_u, d_u0, dt);
-	addSource_K <<<BLOCKS, THREADS>>>(size, d_v, d_v0, dt);
+	addConstantSource_K<<<1, 1>>>(size, d_u, s_v_i, s_v_j, s_u_val, dt);
+	addConstantSource_K<<<1, 1>>>(size, d_v, s_v_i, s_v_j, s_v_val, dt);
 	cudaDeviceSynchronize();
 
+	//Vorticity
+	if (true) {
+		curl_K<<<BLOCKS, THREADS>>>(size, d_u, d_v, d_curl);
+		cudaDeviceSynchronize();
+		vorticity_K<<<BLOCKS, THREADS>>>(size, d_u, d_v, d_curl, 0.10f, dt);
+		cudaDeviceSynchronize();
+		set_bnd_K<<<1, N >>>(size, 1, d_u);
+		set_bnd_K<<<1, N >>>(size, 2, d_v);
+		cudaDeviceSynchronize();
+	}
+
+	// Buoyancy
+	if (true) {
+		buoyancy_K<<<BLOCKS, THREADS>>>(size, d_v0, d_d, kappa, sigma);
+		cudaDeviceSynchronize();
+		addSource_K<<<BLOCKS, THREADS>>>(size, d_v, d_v0, dt);
+		cudaDeviceSynchronize();
+		set_bnd_K<<<1, N>>>(size, 2, d_v);
+		cudaDeviceSynchronize();
+	}
+	
 	SWAP(d_u0, d_u);
 	diffuse(size, 1, d_u, d_u0, viscosity, iteration);
 	SWAP(d_v0, d_v);
@@ -274,10 +387,11 @@ void step(int size, float dt, float viscosity, float diffusion, int iteration, f
 
 	project(size, d_u, d_v, d_u0, d_v0, iteration);
 	
+
 	// Density step
 	// Add Density Source
-	cudaMemcpy(d_d0, sd, (size*size)*sizeof(float), cudaMemcpyHostToDevice);
-	addSource_K <<<BLOCKS, THREADS>>>(size, d_d, d_d0, dt);
+	addConstantSource_K<<<1, 1>>>(size, d_d, s_d_i, s_d_j, s_d_val, dt);
+	addConstantSource_K<<<1, 1>>>(size, d_d, 128, 248, 50, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_d0, d_d);
@@ -286,7 +400,10 @@ void step(int size, float dt, float viscosity, float diffusion, int iteration, f
 	advect(size, 0, d_d, d_d0, d_u, d_v, dt);
 
 	cudaMemcpy(sd, d_d, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(su, d_u, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(sv, d_v, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
+
+	// Reset for next step
+	cudaMemset(d_u0, 0, (size*size) * sizeof(float));
+	cudaMemset(d_v0, 0, (size*size) * sizeof(float));
+	cudaMemset(d_d0, 0, (size*size) * sizeof(float));
 	return;
 }

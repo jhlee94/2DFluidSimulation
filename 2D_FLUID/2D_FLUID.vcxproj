@@ -40,7 +40,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <NuGetPackageImportStamp>18ac3a0f</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>26994af8</NuGetPackageImportStamp>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -75,11 +75,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="cFluidPanel.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="Fluid.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Fluid.cpp" />
+    <ClCompile Include="FluidPanel.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
