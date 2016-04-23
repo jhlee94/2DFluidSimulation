@@ -12,9 +12,10 @@
 
 char* ref_file = NULL;
 
-GLuint vbo = 0;
+GLuint quad_tex;
+
 sf::Clock fps_clock, sim_clock;
-float current_time, previous_time, frame_count = 0.f, fps = 0.f;
+float current_time, previous_time = 0.f, frame_count = 0.f, fps = 0.f;
 sf::Font* main_font;
 
 int mouseX0 = 0, mouseY0 = 0;
@@ -27,13 +28,14 @@ bool gui = false; // GUI input signal
 Fluid2DCPU* fluid_solver;
 Vector2F* particles = NULL;
 
-
-void Initialise();
+void InitGL();
+void Display(sf::RenderWindow &window);
 void DrawGrid(bool);
 void CreateGUI(sfg::Desktop& desktop);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
 void applyColor(float x, float, float);
+void HandleInput(sf::RenderWindow &window, sf::Event &event);
 
 float myrand(void);
 
@@ -58,6 +60,37 @@ int main()
 
 	// Init GLEW functions
 	glewInit();
+	InitGL();
+	// SFML mainloop
+	sf::Event event;
+
+	while (app_window.isOpen()) {
+		CalculateFPS();
+		// Handle Input
+		HandleInput(app_window, event);
+		// Draw
+		Display(app_window);
+	}
+
+	// cleanup
+	delete main_font;
+	delete fluid_solver;
+	delete panel;
+	
+	return 0;
+}
+
+void InitGL()
+{
+	// Bind Texture Buffer
+	glGenTextures(1, &quad_tex);
+	glBindTexture(GL_TEXTURE_2D, quad_tex);
+	float pixels[] = {
+		0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+		1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f
+	};
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB, GL_FLOAT, pixels);
+
 	// GL_Display Init
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -65,170 +98,104 @@ int main()
 	glOrtho(0, WIDTH, HEIGHT, 0, 0, 1);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-
-	// FPS init
-	sf::Text fps_text;
-	previous_time = fps_clock.getElapsedTime().asMilliseconds();
-
-	// SFML mainloop
-	sf::Event event;
-
-	while (app_window.isOpen()) {
-		CalculateFPS();
-		// Simulate Fluid Solver step
-		auto delta = sim_clock.restart().asSeconds();
-		fluid_solver->m_parameters.dt = delta;
-
-		while (app_window.pollEvent(event)) {
-			if (event.type == sf::Event::Closed) {
-				app_window.close();
-				break;
-			}
-			else if (event.type == sf::Event::Resized) {
-				glViewport(0, 0, event.size.width, event.size.height);
-				glMatrixMode(GL_PROJECTION);
-				glLoadIdentity();
-				glOrtho(0, WIDTH, HEIGHT, 0, 0, 1);
-				glMatrixMode(GL_MODELVIEW);
-				glLoadIdentity();
-			}
-			else if (event.type == sf::Event::LostFocus)
-			{
-				// Pause the system
-			}
-			else {
-				//if ()
-				panel->HandleEvent(event);
-				if (event.type == sf::Event::MouseButtonPressed)
-				{
-					
-					int i = (event.mouseButton.x / static_cast<float>(WIDTH)) * DIM + 1;
-					int j = (event.mouseButton.y / static_cast<float>(HEIGHT)) * DIM + 1;
-				}
-
-				if (event.type == sf::Event::MouseMoved)
-				{
-					
-					int mouseX = event.mouseMove.x;
-					int mouseY = event.mouseMove.y;
-					if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
-						int i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
-						int j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
-						float dirX = (mouseX - mouseX0) * 100;
-						float dirY = (mouseY - mouseY0) * 100;
-						fluid_solver->u_prev[fluid_solver->index(i, j)] = dirX;
-						fluid_solver->v_prev[fluid_solver->index(i, j)] = dirY;
-
-
-						fluid_solver->u_prev[fluid_solver->index(i + 1, j)] = dirX;
-						fluid_solver->v_prev[fluid_solver->index(i + 1, j)] = dirY;
-						fluid_solver->u_prev[fluid_solver->index(i - 1, j)] = dirX;
-						fluid_solver->v_prev[fluid_solver->index(i - 1, j)] = dirY;
-						fluid_solver->u_prev[fluid_solver->index(i, j + 1)] = dirX;
-						fluid_solver->v_prev[fluid_solver->index(i, j + 1)] = dirY;
-						fluid_solver->u_prev[fluid_solver->index(i, j - 1)] = dirX;
-						fluid_solver->v_prev[fluid_solver->index(i, j - 1)] = dirY;
-
-
-
-						mouseX0 = mouseX;
-						mouseY0 = mouseY;
-					}
-				}
-			}
-		}
-
-		if (sf::Mouse::isButtonPressed(sf::Mouse::Left)){
-			int i = (sf::Mouse::getPosition(app_window).x / static_cast<float>(WIDTH)) * DIM + 1;
-			int j = (sf::Mouse::getPosition(app_window).y / static_cast<float>(HEIGHT)) * DIM + 1;
-			fluid_solver->dens_prev[fluid_solver->index(i, j)] = 100.f;
-			fluid_solver->dens_prev[fluid_solver->index(i - 1, j)] = 100.f;
-			fluid_solver->dens_prev[fluid_solver->index(i + 1, j)] = 100.f;
-			fluid_solver->dens_prev[fluid_solver->index(i - 2, j)] = 100.f;
-			fluid_solver->dens_prev[fluid_solver->index(i + 2, j)] = 100.f;
-		}
-
-		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-		// Step Fluid
-		fluid_solver->step();
-		// Render Density
-		glPushMatrix();
-		glTranslatef(WIDTH/4.f, HEIGHT/4.f, 0.f);
-		for (int i = 1; i <= DIM; i++) {
-			for (int j = 1; j <= DIM; j++) {
-				int cell_idx = fluid_solver->index(i, j);
-
-				float density = fluid_solver->dens[cell_idx];
-				float color;
-				if (density > 0)
-				{
-					glPushMatrix();
-					//glScalef(0.5f, 0.5f, 1.0);
-					glTranslatef(i*TILE_SIZE_X - TILE_SIZE_X, j*TILE_SIZE_Y - TILE_SIZE_Y, 0);
-					glBegin(GL_QUADS);
-					
-					if (j < DIM - 1)
-						applyColor(fluid_solver->dens[fluid_solver->index(i, j+1)], 
-								   fluid_solver->u[fluid_solver->index(i, j+1)], 
-								   fluid_solver->v[fluid_solver->index(i, j+1)]);
-					else
-						applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-					glVertex2f(0.f, TILE_SIZE_Y);
-					
-					applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-					glVertex2f(0.f, 0.f);
-
-					if (i < DIM - 1)
-						applyColor(fluid_solver->dens[fluid_solver->index(i + 1, j)], 
-								   fluid_solver->u[fluid_solver->index(i + 1, j)], 
-								   fluid_solver->v[fluid_solver->index(i + 1, j)]);
-					else
-						applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-					glVertex2f(TILE_SIZE_X, 0.f);
-					if (i < DIM - 1 && j < DIM - 1)
-						applyColor(fluid_solver->dens[fluid_solver->index(i + 1, j + 1)],
-						fluid_solver->u[fluid_solver->index(i + 1, j + 1)],
-						fluid_solver->v[fluid_solver->index(i + 1, j + 1)]);
-					else
-						applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-					glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
-					glEnd();
-					glPopMatrix();
-				}
-			}
-		}
-		glPopMatrix();
-
-		// Grid Lines 
-		//DrawGrid(grid_check->IsActive());
-
-		// SFML rendering.
-		// Draw FPS Text
-		app_window.pushGLStates();
-		PrintString(5, 16, fps_text, "FPS: %5.2f", fps);
-		app_window.draw(fps_text);
-
-		// SFGUI Update
-		panel->Update(delta);
-		panel->Display(app_window);
-		app_window.popGLStates();
-
-		// Finally, Display all
-		app_window.display();
-		//glFlush();
-	}
-
-	// cleanup
-	delete main_font;
-	delete fluid_solver;
-	delete panel;
-	return 0;
 }
 
-void Display()
+void Display(sf::RenderWindow &window)
 {
+	sf::Text fps_text;
+	auto delta = sim_clock.restart().asSeconds();
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	
+	//glPushMatrix();
+	//glEnable(GL_TEXTURE_2D);
+	//glBindTexture(GL_TEXTURE_2D, quad_tex);
+	//glBegin(GL_QUADS);
+	////glColor3f(1.f, 1.f, 1.f);
+	//glTexCoord2f(0.f, 0.f);	glVertex2f(0.f, 512.f);
+	//glTexCoord2f(0.f, 1.f);	glVertex2f(0.f, 0.f);
+	//glTexCoord2f(1.f, 1.f);	glVertex2f(512.f, 0.f);
+	//glTexCoord2f(1.f, 0.f);	glVertex2f(512.f, 512.f);
+	//glEnd();
+	//glDisable(GL_TEXTURE_2D);
+	//glPopMatrix();
+
+	glPushMatrix();
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(0.f, 0.f);
+	glVertex2f(256.f, 256.f);
+	glVertex2f(512.f, 0.f);
+	glEnd();
+
+	
+	//// Step Fluid
+	//fluid_solver->step();
+	//// Render Density
+	//glPushMatrix();
+	//glTranslatef(WIDTH/4.f, HEIGHT/4.f, 0.f);
+	//for (int i = 1; i <= DIM; i++) {
+	//	for (int j = 1; j <= DIM; j++) {
+	//		int cell_idx = fluid_solver->index(i, j);
+
+	//		float density = fluid_solver->dens[cell_idx];
+	//		float color;
+	//		if (density > 0)
+	//		{
+	//			glPushMatrix();
+	//			//glScalef(0.5f, 0.5f, 1.0);
+	//			glTranslatef(i*TILE_SIZE_X - TILE_SIZE_X, j*TILE_SIZE_Y - TILE_SIZE_Y, 0);
+	//			glBegin(GL_QUADS);
+	//			
+	//			if (j < DIM - 1)
+	//				applyColor(fluid_solver->dens[fluid_solver->index(i, j+1)], 
+	//						   fluid_solver->u[fluid_solver->index(i, j+1)], 
+	//						   fluid_solver->v[fluid_solver->index(i, j+1)]);
+	//			else
+	//				applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+	//			glVertex2f(0.f, TILE_SIZE_Y);
+	//			
+	//			applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+	//			glVertex2f(0.f, 0.f);
+
+	//			if (i < DIM - 1)
+	//				applyColor(fluid_solver->dens[fluid_solver->index(i + 1, j)], 
+	//						   fluid_solver->u[fluid_solver->index(i + 1, j)], 
+	//						   fluid_solver->v[fluid_solver->index(i + 1, j)]);
+	//			else
+	//				applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+	//			glVertex2f(TILE_SIZE_X, 0.f);
+	//			if (i < DIM - 1 && j < DIM - 1)
+	//				applyColor(fluid_solver->dens[fluid_solver->index(i + 1, j + 1)],
+	//				fluid_solver->u[fluid_solver->index(i + 1, j + 1)],
+	//				fluid_solver->v[fluid_solver->index(i + 1, j + 1)]);
+	//			else
+	//				applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+	//			glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
+	//			glEnd();
+	//			glPopMatrix();
+	//		}
+	//	}
+	//}
+	//glPopMatrix();
+
+	// Grid Lines 
+	//DrawGrid(grid_check->IsActive());
+
+	// SFML rendering.
+	// Draw FPS Text
+	window.pushGLStates();
+	PrintString(5, 16, fps_text, "FPS: %5.2f", fps);
+	window.draw(fps_text);
+
+	// SFGUI Update
+	panel->Update(delta);
+	panel->Display(window);
+	window.popGLStates();
+
+	// Finally, Display all
+	window.display();
+	//glFlush();
 }
 
 void DrawGrid(bool x)
@@ -335,4 +302,76 @@ void applyColor(float x, float, float){
 		glColor4f(1., 1., 1., 1.);
 	}
 
+}
+
+void HandleInput(sf::RenderWindow &window, sf::Event &event)
+{
+	while (window.pollEvent(event)) {
+		if (event.type == sf::Event::Closed) {
+			window.close();
+			break;
+		}
+		else if (event.type == sf::Event::Resized) {
+			glViewport(0, 0, event.size.width, event.size.height);
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrtho(0, WIDTH, HEIGHT, 0, 0, 1);
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+		}
+		else if (event.type == sf::Event::LostFocus)
+		{
+			// Pause the system
+		}
+		else {
+			//if ()
+			panel->HandleEvent(event);
+			if (event.type == sf::Event::MouseButtonPressed)
+			{
+
+				int i = (event.mouseButton.x / static_cast<float>(WIDTH)) * DIM + 1;
+				int j = (event.mouseButton.y / static_cast<float>(HEIGHT)) * DIM + 1;
+			}
+
+			if (event.type == sf::Event::MouseMoved)
+			{
+
+				int mouseX = event.mouseMove.x;
+				int mouseY = event.mouseMove.y;
+				if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
+					int i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
+					int j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
+					float dirX = (mouseX - mouseX0) * 100;
+					float dirY = (mouseY - mouseY0) * 100;
+					fluid_solver->u_prev[fluid_solver->index(i, j)] = dirX;
+					fluid_solver->v_prev[fluid_solver->index(i, j)] = dirY;
+
+
+					fluid_solver->u_prev[fluid_solver->index(i + 1, j)] = dirX;
+					fluid_solver->v_prev[fluid_solver->index(i + 1, j)] = dirY;
+					fluid_solver->u_prev[fluid_solver->index(i - 1, j)] = dirX;
+					fluid_solver->v_prev[fluid_solver->index(i - 1, j)] = dirY;
+					fluid_solver->u_prev[fluid_solver->index(i, j + 1)] = dirX;
+					fluid_solver->v_prev[fluid_solver->index(i, j + 1)] = dirY;
+					fluid_solver->u_prev[fluid_solver->index(i, j - 1)] = dirX;
+					fluid_solver->v_prev[fluid_solver->index(i, j - 1)] = dirY;
+
+
+
+					mouseX0 = mouseX;
+					mouseY0 = mouseY;
+				}
+			}
+		}
+	}
+
+	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)){
+		int i = (sf::Mouse::getPosition(window).x / static_cast<float>(WIDTH)) * DIM + 1;
+		int j = (sf::Mouse::getPosition(window).y / static_cast<float>(HEIGHT)) * DIM + 1;
+		fluid_solver->dens_prev[fluid_solver->index(i, j)] = 100.f;
+		fluid_solver->dens_prev[fluid_solver->index(i - 1, j)] = 100.f;
+		fluid_solver->dens_prev[fluid_solver->index(i + 1, j)] = 100.f;
+		fluid_solver->dens_prev[fluid_solver->index(i - 2, j)] = 100.f;
+		fluid_solver->dens_prev[fluid_solver->index(i + 2, j)] = 100.f;
+	}
 }

@@ -17,9 +17,10 @@
 #include <cuda_gl_interop.h>
 
 #include <helper_cuda.h>
+#include <helper_cuda_gl.h>
 #include <helper_functions.h>
-//
 #include <helper_math.h>
+
 #include "config.h"
 
 __global__ void addSource_K(int size, float *d, float *s);

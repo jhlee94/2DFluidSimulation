@@ -1,6 +1,7 @@
 #pragma once
 // OpenGL 
 #include <GL/glew.h>
+#include <cudaGL.h>
 // Includes
 #include <string.h>
 #include <iostream>
@@ -22,11 +23,23 @@
 //sources
 float *sd, *su, *sv;
 
+//GLuint pbo;
+//struct cudaGraphicsResource *cuda_pbo_resource; // handles OpenGL-CUDA exchange
+//
+//GLuint tex;
+//// Texture pitch
+//size_t tPitch = 0; // Now this is compatible with gcc in 64-bit
+
 //SFML variables
 sf::Clock fps_clock, sim_clock;
 float current_time, previous_time, frame_count = 0.f, fps = 0.f;
 sf::Font* main_font;
 int mouseX0 = -10, mouseY0 = -10;
+
+// CUDA Arrays
+GLuint m_FluidTextureName[2];
+CUarray m_cudaArray[2];
+CUgraphicsResource m_cuda_graphicsResource[2];
 
 // Cuda Kernels
 extern "C" void initCUDA(int size);
@@ -64,6 +77,55 @@ int main(void)
 
 	std::cout << "Max Grid Size: " << size << std::endl;
 	std::cout << "Max Tile Size: " << TILE_SIZE_X << std::endl;
+
+	// Init CUDA Arrays
+
+
+	//glGenBuffers(1, &pbo);  // Make this the current UNPACK buffer (OpenGL is state-based)
+	//glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);// Allocate data for the buffer. 4-channel 8-bit image
+	//glBufferData(GL_PIXEL_UNPACK_BUFFER, size * 4, NULL, GL_DYNAMIC_COPY);
+	//cudaGLRegisterBufferObject(pbo);
+
+	////Enable Texturinggl
+	//glEnable(GL_TEXTURE_2D);
+	////Generatea texture ID
+	//glGenTextures(1,&tex);    
+	////Make this the current texture (remember that GL is state-based)
+	//glBindTexture( GL_TEXTURE_2D, tex);  
+	//// Allocate the texture memory. The last parameter is NULL since we only
+	//// want to allocate memory, not initialize it
+	//glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, DIM, DIM, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL) ;//Mustsetthe filter mode, GL_LINEAR enables interpolation when scaling glTexParameter i(GL_TEXT UR E_2D,GL_TEXTUR E_MIN_FIL TE R,GL_ LINEAR);glTexParameter i(GL_TEXT UR E_2D,GL_TEXTUR E_MAG_FIL TE R,GL_ LINEAR);
+
+	//cudaGLMapBufferObject(void **devPtr, GLuint bufObj);
+
+	// We only need to do these gl-cuda bindings once.
+
+	// Register both volume textures (pingponged) in CUDA
+	cuGraphicsGLRegisterImage(&m_cuda_graphicsResource[0]
+		, m_FluidTextureName[0]
+		, GL_TEXTURE_2D
+		, CU_GRAPHICS_REGISTER_FLAGS_SURFACE_LDST);
+	cuGraphicsGLRegisterImage(&m_cuda_graphicsResource[1]
+		, m_FluidTextureName[1]
+		, GL_TEXTURE_2D
+		, CU_GRAPHICS_REGISTER_FLAGS_SURFACE_LDST);
+
+	cuGraphicsMapResources(1, &m_cuda_graphicsResource[0], 0);
+
+	cuGraphicsMapResources(1, &m_cuda_graphicsResource[1], 0);
+
+
+	// Bind the volume textures to their respective cuda arrays.
+	cuGraphicsSubResourceGetMappedArray(&m_cudaArray[0]
+		, m_cuda_graphicsResource[0]
+		, 0, 0);
+
+	cuGraphicsSubResourceGetMappedArray(&m_cudaArray[1]
+		, m_cuda_graphicsResource[1]
+		, 0, 0);
+
+	cuGraphicsUnmapResources(1, &m_cuda_graphicsResource[0], 0);
+	cuGraphicsUnmapResources(1, &m_cuda_graphicsResource[1], 0);
 
 	// Initialise Sources
 	sd = new float[size];

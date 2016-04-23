@@ -10,8 +10,8 @@ FluidPanel::~FluidPanel()
 void FluidPanel::Initialise(Fluid2DCPU::Parameters &parameters) 
 {
 	// Define GUI
-	auto viscosity_scale = sfg::Scale::Create(0.f, 0.001f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
-	auto diffusion_scale = sfg::Scale::Create(0.f, 0.001f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
+	auto viscosity_scale = sfg::Scale::Create(0.f, 0.005f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
+	auto diffusion_scale = sfg::Scale::Create(0.f, 0.005f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
 	auto kappa_scale = sfg::Scale::Create(0.f, 1.0f, 0.1f, sfg::Scale::Orientation::HORIZONTAL);
 	auto sigma_scale = sfg::Scale::Create(0.f, 1.0f, 0.1f, sfg::Scale::Orientation::HORIZONTAL);
 	auto solver_scale = sfg::Scale::Create(0.f, 100.f, 10.0f, sfg::Scale::Orientation::HORIZONTAL);

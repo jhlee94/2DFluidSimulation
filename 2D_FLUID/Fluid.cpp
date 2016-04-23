@@ -254,7 +254,7 @@ void Fluid2DCPU::vel_step(float* u, float *v, float *u0, float *v0, float viscos
 
 	if (m_parameters.vorticity)
 	{
-		vort_conf(u, v, 0.01f, dt);
+		vort_conf(u, v, 0.1f, dt);
 	}
 
 	if (m_parameters.buoyancy)
