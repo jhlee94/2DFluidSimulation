@@ -17,7 +17,11 @@ private:
 		DIFFUSION,
 		KAPPA,
 		SIGMA,
-		DT
+		DT,
+		VORT_STR,
+		VORTICITY,
+		BUOYANCY,
+		GRID
 	};
 
 	sfg::SFGUI m_sfgui;
@@ -36,7 +40,10 @@ public:
 	void HandleEvent(sf::Event &event);
 
 	// Scale Button Functions
-	void OnScaleChange(PARMAP param_map, Fluid2DCPU::Parameters *parameters, std::shared_ptr<sfg::Scale> pointer);
+	void OnScaleChange(PARMAP param_map, 
+					   Fluid2DCPU::Parameters *parameters, 
+					   std::shared_ptr<sfg::Scale> pointer, 
+					   std::shared_ptr<sfg::CheckButton> check_ptr);
 
 	// GUI Input Catcher
 	void GUICatch(bool &input);

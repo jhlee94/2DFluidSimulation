@@ -3,7 +3,7 @@
 
 #define index(i,j) ((i) + (DIM) *(j))
 #define SWAP(a0, a) {float *tmp = a0; a0 = a; a = tmp;}
-
+#define CLAMP(v, a, b) (a + (v - a) / (b - a))
 //// Texture reference for reading velocity field
 //texture<float, 1> texref;
 //static cudaArray *array = NULL;
@@ -16,10 +16,10 @@
 //// Texture pitch
 //extern size_t tPitch;
 
-extern GLuint m_FluidTextureName[2];
-extern CUarray m_cudaArray[2];
-extern CUgraphicsResource m_cuda_graphicsResource[2];
-
+//extern GLuint m_FluidTextureName[2];
+//extern CUarray m_cudaArray[2];
+//extern CUgraphicsResource m_cuda_graphicsResource[2];
+extern uchar4 *d_textureBufferData;
 //velocity and pressure
 float *d_u, *d_v;
 float *d_u0, *d_v0;
@@ -35,11 +35,80 @@ __global__ void addSource_K(int size, float *d, float *s, float dt) {
 	int i = gtidx % size;
 	int j = gtidx / size;
 	int N = (size - 2);
-
+	
 	// Skip Boundary values
 	if (i<1 || i>N || j<1 || j>N) return;
 	// Add source each timestep
 	d[gtidx] += dt * s[gtidx];
+}
+
+__global__ void texture_K(int size, uchar4 *surface, float *dens)
+{
+	int gtidx = (int) (threadIdx.x + blockIdx.x * blockDim.x);
+	int i = gtidx % size;
+	int j = gtidx / size;
+	int N = (size - 2);
+
+	const float treshold1 = 1.;
+	const float treshold2 = 4.;
+	const float treshold3 = 10.;
+
+	
+
+	// Skip Boundary values
+	if (i<1 || i>N || j<1 || j>N) {
+		surface[index(i, j)].w = 255;
+		surface[index(i, j)].x = 0;
+		surface[index(i, j)].y = 0;
+		surface[index(i, j)].z = 0;
+		return;
+	}
+	else
+	{
+		float pvalue = dens[index(i, j)];
+		uchar4 color;
+		/* red */
+		if (pvalue < treshold1) {
+			color.w = 255;
+			color.x = 255 * CLAMP(pvalue, 0., treshold1);
+			color.y = 0;
+			color.z = 0;
+		}
+		/* yellow */
+		else if (pvalue < treshold2) {
+			color.w = 255;
+			color.x = 255;
+			color.y = 255 * (CLAMP(pvalue, treshold1, treshold2) - treshold1);
+			color.z = 0;
+		}
+		/* white */
+		else if (pvalue < treshold3){
+			color.w = 255;
+			color.x = 255;
+			color.y = 255;
+			color.z = 255 * (CLAMP(pvalue, treshold2, treshold3) - treshold2);
+		}
+		else{
+			color.w = 255;
+			color.x = 255;
+			color.y = 255;
+			color.z = 255;
+		}
+
+		if (pvalue > 0) {
+			// populate it
+			surface[index(i, j)].w = color.w;
+			surface[index(i, j)].x = color.x;
+			surface[index(i, j)].y = color.y;
+			surface[index(i, j)].z = color.z;
+		}
+		else {
+			surface[index(i, j)].w = 255;
+			surface[index(i, j)].x = 0;
+			surface[index(i, j)].y = 0;
+			surface[index(i, j)].z = 0;
+		}
+	}
 }
 
 
@@ -286,7 +355,7 @@ void freeCUDA()
 	cudaFree(d_v0);
 	cudaFree(d_div);
 	cudaFree(d_curl);
-
+	cudaFree(d_textureBufferData);
 	cudaDeviceReset();
 }
 
@@ -407,7 +476,7 @@ void step(int size,
 	// Density step
 	// Add Density Source
 	addConstantSource_K<<<1, 1>>>(size, d_d, s_d_i, s_d_j, s_d_val, dt);
-	addConstantSource_K<<<1, 1>>>(size, d_d, 128, 248, 50, dt);
+	addConstantSource_K<<<1, 1>>>(size, d_d, 128, 248, 100, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_d0, d_d);
@@ -415,11 +484,17 @@ void step(int size,
 	SWAP(d_d0, d_d);
 	advect(size, 0, d_d, d_d0, d_u, d_v, dt);
 
-	cudaMemcpy(sd, d_d, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
+	//cudaMemcpy(sd, d_d, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
 
 	// Reset for next step
 	cudaMemset(d_u0, 0, (size*size) * sizeof(float));
 	cudaMemset(d_v0, 0, (size*size) * sizeof(float));
 	cudaMemset(d_d0, 0, (size*size) * sizeof(float));
 	return;
+}
+
+extern "C"
+void createTexture(int size, uchar4* d_texture)
+{
+	texture_K<<<BLOCKS,THREADS>>>(size, d_texture, d_d);
 }

@@ -21,8 +21,10 @@ void Fluid2DCPU::Initialise(unsigned int N)
 	m_parameters.sigma = 0.f;
 	m_parameters.diffusion = 0.f;
 	m_parameters.viscosity = 0.f;
-	m_parameters.vorticity = true;
-	m_parameters.buoyancy = true;
+	m_parameters.vort_str = 0.1f;
+	m_parameters.vorticity = false;
+	m_parameters.buoyancy = false;
+	m_parameters.grid = false;
 
 	//Initialise all to zero
 	for (unsigned int i = 0; i < dim2; i++)
@@ -254,7 +256,7 @@ void Fluid2DCPU::vel_step(float* u, float *v, float *u0, float *v0, float viscos
 
 	if (m_parameters.vorticity)
 	{
-		vort_conf(u, v, 0.1f, dt);
+		vort_conf(u, v, m_parameters.vort_str, dt);
 	}
 
 	if (m_parameters.buoyancy)

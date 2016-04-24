@@ -14,10 +14,12 @@ public:
 		float	dt;
 		float	kappa;
 		float	sigma;
+		float	vort_str;
 		float	diffusion;
 		float	viscosity;
 		bool	vorticity;
 		bool	buoyancy;
+		bool	grid;
 	} m_parameters;
 
 	int dim;

@@ -1,11 +1,10 @@
 #pragma once
 // OpenGL 
 #include <GL/glew.h>
-#include <cudaGL.h>
+//#include <cudaGL.h>
 // Includes
 #include <string.h>
 #include <iostream>
-
 // SFML/GUI includes
 #include <SFML\Graphics.hpp>
 #include <SFML\OpenGL.hpp>
@@ -22,13 +21,8 @@
 // Global Variable Init
 //sources
 float *sd, *su, *sv;
-
-//GLuint pbo;
-//struct cudaGraphicsResource *cuda_pbo_resource; // handles OpenGL-CUDA exchange
-//
-//GLuint tex;
-//// Texture pitch
-//size_t tPitch = 0; // Now this is compatible with gcc in 64-bit
+uchar4 *h_textureBufferData;
+uchar4 *d_textureBufferData;
 
 //SFML variables
 sf::Clock fps_clock, sim_clock;
@@ -36,10 +30,16 @@ float current_time, previous_time, frame_count = 0.f, fps = 0.f;
 sf::Font* main_font;
 int mouseX0 = -10, mouseY0 = -10;
 
+// vbo variables
+GLuint pbo;
+struct cudaGraphicsResource *cudaPBO;
+GLuint tex;
+
+
 // CUDA Arrays
-GLuint m_FluidTextureName[2];
-CUarray m_cudaArray[2];
-CUgraphicsResource m_cuda_graphicsResource[2];
+//GLuint m_FluidTextureName[2];
+//CUarray m_cudaArray[2];
+//CUgraphicsResource m_cuda_graphicsResource[2];
 
 // Cuda Kernels
 extern "C" void initCUDA(int size);
@@ -52,11 +52,14 @@ extern "C" void step(int size, float dt, float viscosity, float diffusion, float
 	float s_d_val,
 	float s_u_val,
 	float s_v_val);
+extern "C" void createTexture(int size, uchar4* d_texture);
 // Graphics Functions
 void DrawGrid(bool);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
 void applyColor(float x, float, float);
+bool InitGLBuffers(int width, int height);
+void createFrame();
 
 int main(void)
 {
@@ -78,54 +81,6 @@ int main(void)
 	std::cout << "Max Grid Size: " << size << std::endl;
 	std::cout << "Max Tile Size: " << TILE_SIZE_X << std::endl;
 
-	// Init CUDA Arrays
-
-
-	//glGenBuffers(1, &pbo);  // Make this the current UNPACK buffer (OpenGL is state-based)
-	//glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);// Allocate data for the buffer. 4-channel 8-bit image
-	//glBufferData(GL_PIXEL_UNPACK_BUFFER, size * 4, NULL, GL_DYNAMIC_COPY);
-	//cudaGLRegisterBufferObject(pbo);
-
-	////Enable Texturinggl
-	//glEnable(GL_TEXTURE_2D);
-	////Generatea texture ID
-	//glGenTextures(1,&tex);    
-	////Make this the current texture (remember that GL is state-based)
-	//glBindTexture( GL_TEXTURE_2D, tex);  
-	//// Allocate the texture memory. The last parameter is NULL since we only
-	//// want to allocate memory, not initialize it
-	//glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, DIM, DIM, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL) ;//Mustsetthe filter mode, GL_LINEAR enables interpolation when scaling glTexParameter i(GL_TEXT UR E_2D,GL_TEXTUR E_MIN_FIL TE R,GL_ LINEAR);glTexParameter i(GL_TEXT UR E_2D,GL_TEXTUR E_MAG_FIL TE R,GL_ LINEAR);
-
-	//cudaGLMapBufferObject(void **devPtr, GLuint bufObj);
-
-	// We only need to do these gl-cuda bindings once.
-
-	// Register both volume textures (pingponged) in CUDA
-	cuGraphicsGLRegisterImage(&m_cuda_graphicsResource[0]
-		, m_FluidTextureName[0]
-		, GL_TEXTURE_2D
-		, CU_GRAPHICS_REGISTER_FLAGS_SURFACE_LDST);
-	cuGraphicsGLRegisterImage(&m_cuda_graphicsResource[1]
-		, m_FluidTextureName[1]
-		, GL_TEXTURE_2D
-		, CU_GRAPHICS_REGISTER_FLAGS_SURFACE_LDST);
-
-	cuGraphicsMapResources(1, &m_cuda_graphicsResource[0], 0);
-
-	cuGraphicsMapResources(1, &m_cuda_graphicsResource[1], 0);
-
-
-	// Bind the volume textures to their respective cuda arrays.
-	cuGraphicsSubResourceGetMappedArray(&m_cudaArray[0]
-		, m_cuda_graphicsResource[0]
-		, 0, 0);
-
-	cuGraphicsSubResourceGetMappedArray(&m_cudaArray[1]
-		, m_cuda_graphicsResource[1]
-		, 0, 0);
-
-	cuGraphicsUnmapResources(1, &m_cuda_graphicsResource[0], 0);
-	cuGraphicsUnmapResources(1, &m_cuda_graphicsResource[1], 0);
 
 	// Initialise Sources
 	sd = new float[size];
@@ -187,6 +142,8 @@ int main(void)
 	glOrtho(0, 1, 1, 0, 0, 1);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+
+	InitGLBuffers(DIM, DIM);
 
 	// FPS init
 	sf::Text fps_text;
@@ -250,7 +207,7 @@ int main(void)
 			dt_scale->GetValue(), 
 			viscosity_scale->GetValue(), 
 			diffusion_scale->GetValue(), 
-			0.3f, 
+			0.1f, 
 			0.0f, 
 			solver_scale->GetValue(), 
 			sd,
@@ -261,54 +218,74 @@ int main(void)
 			s_d_val,
 			s_u_val,
 			s_v_val);
+		createFrame();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glPushMatrix();
+		glColor3f(1.0f, 1.0f, 1.0f);
+		glBindTexture(GL_TEXTURE_2D, tex);
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, DIM, DIM, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
-		for (int i = 1; i < DIM-1; i++) {
-			for (int j = 1; j < DIM-1; j++) {
-				int cell_idx = index(i,j);
+		glBegin(GL_QUADS);
+		glTexCoord2f(0.f, 0.f);	glVertex2f(0.f, 0.f);
+		glTexCoord2f(0.f, 1.f);	glVertex2f(0.f, 1.f);
+		glTexCoord2f(1.f, 1.f);	glVertex2f(1.f, 1.f);
+		glTexCoord2f(1.f, 0.f);	glVertex2f(1.f, 0.f);
+		glEnd();
 
-				float density = sd[cell_idx];
-				float color;
-				if (density > 0)
-				{
-					//color = std::fmod(density, 100.f) / 100.f;
-					glPushMatrix();
-					glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
-					glBegin(GL_QUADS);
-					if (j < DIM - 1)
-						applyColor(sd[index(i, j + 1)],
-						su[index(i, j + 1)],
-						sv[index(i, j + 1)]);
-					else
-						applyColor(density, su[cell_idx], sv[cell_idx]);
-					glVertex2f(0.f, TILE_SIZE_Y);
+		// Release
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glPopMatrix();
 
-					applyColor(density, su[cell_idx], sv[cell_idx]);
-					glVertex2f(0.f, 0.f);
+		//for (int i = 1; i < DIM-1; i++) {
+		//	for (int j = 1; j < DIM-1; j++) {
+		//		int cell_idx = index(i,j);
 
-					if (i < DIM - 1)
-						applyColor(sd[index(i + 1, j)],
-						su[index(i + 1, j)],
-						sv[index(i + 1, j)]);
-					else
-						applyColor(density, su[cell_idx], sv[cell_idx]);
-					glVertex2f(TILE_SIZE_X, 0.f);
+		//		float density = sd[cell_idx];
+		//		float color;
+		//		if (density > 0)
+		//		{
+		//			//color = std::fmod(density, 100.f) / 100.f;
+		//			glPushMatrix();
+		//			glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
+		//			glBegin(GL_QUADS);
+		//			if (j < DIM - 1)
+		//				applyColor(sd[index(i, j + 1)],
+		//				su[index(i, j + 1)],
+		//				sv[index(i, j + 1)]);
+		//			else
+		//				applyColor(density, su[cell_idx], sv[cell_idx]);
+		//			glVertex2f(0.f, TILE_SIZE_Y);
 
-					if (i < DIM - 1 && j < DIM - 1)
-						applyColor(sd[index(i + 1, j + 1)],
-						su[index(i + 1, j + 1)],
-						sv[index(i + 1, j + 1)]);
-					else
-						applyColor(density, su[cell_idx], sv[cell_idx]);
-					glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
-					glEnd();
-					glPopMatrix();
-				}
-			}
-		}
+		//			applyColor(density, su[cell_idx], sv[cell_idx]);
+		//			glVertex2f(0.f, 0.f);
+
+		//			if (i < DIM - 1)
+		//				applyColor(sd[index(i + 1, j)],
+		//				su[index(i + 1, j)],
+		//				sv[index(i + 1, j)]);
+		//			else
+		//				applyColor(density, su[cell_idx], sv[cell_idx]);
+		//			glVertex2f(TILE_SIZE_X, 0.f);
+
+		//			if (i < DIM - 1 && j < DIM - 1)
+		//				applyColor(sd[index(i + 1, j + 1)],
+		//				su[index(i + 1, j + 1)],
+		//				sv[index(i + 1, j + 1)]);
+		//			else
+		//				applyColor(density, su[cell_idx], sv[cell_idx]);
+		//			glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
+		//			glEnd();
+		//			glPopMatrix();
+		//		}
+		//	}
+		//}
 
 		// Grid Lines 
+		glPushMatrix();
 		DrawGrid(grid_check->IsActive());
+		glPopMatrix();
 
 		// SFML rendering.
 		// Draw FPS Text
@@ -328,6 +305,9 @@ int main(void)
 	freeCUDA();
 	delete main_font;
 	delete[] sd, sv, su;
+	delete h_textureBufferData;
+	h_textureBufferData = nullptr;
+	glDeleteTextures(1, &tex);
 	return 0;
 }
 
@@ -415,4 +395,47 @@ void applyColor(float x, float, float){
 		glColor4f(1., 1., 1., 1.);
 	}
 
+}
+
+bool InitGLBuffers(int width, int height) {
+
+	// Allocate new buffers.
+	h_textureBufferData = new uchar4[width * height];
+
+	glEnable(GL_TEXTURE_2D);
+
+	// Unbind any textures from previous.
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,
+		GL_UNSIGNED_BYTE, h_textureBufferData);
+
+	glGenBuffers(1, &pbo);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
+	glBufferData(GL_PIXEL_UNPACK_BUFFER, width * height * sizeof(uchar4),
+		h_textureBufferData, GL_STREAM_COPY);
+
+	cudaError result = cudaGraphicsGLRegisterBuffer(&cudaPBO, pbo,
+		cudaGraphicsMapFlagsWriteDiscard);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	return result == cudaSuccess;
+}
+
+void createFrame() {
+	cudaGraphicsMapResources(1, &cudaPBO, 0);
+	size_t num_bytes;
+	cudaGraphicsResourceGetMappedPointer((void**)&d_textureBufferData,
+		&num_bytes, cudaPBO);
+
+	createTexture(DIM, d_textureBufferData);
+
+	cudaGraphicsUnmapResources(1, &cudaPBO, 0);
 }

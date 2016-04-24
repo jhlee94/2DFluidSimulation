@@ -3,7 +3,7 @@
 #define DIM 256 // Grid Dimension
 #define DS (DIM * DIM)
 
-#define THREADS 128
+#define THREADS 256
 #define BLOCKS (DS/THREADS)
 
 
