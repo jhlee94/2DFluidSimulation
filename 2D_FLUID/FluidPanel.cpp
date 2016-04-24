@@ -64,7 +64,7 @@ void FluidPanel::Initialise(Fluid2DCPU::Parameters &parameters)
 	
 	auto window = sfg::Window::Create();
 	window->SetTitle("Fluid Panel");
-	window->SetPosition(sf::Vector2f(100.f, 100.f));
+	window->SetPosition(sf::Vector2f(50.f, 100.f));
 	window->GetSignal(sfg::Window::OnMouseEnter).Connect(std::bind(&FluidPanel::GUICatch, this, m_input_signal));
 	window->GetSignal(sfg::Window::OnMouseLeave).Connect(std::bind(&FluidPanel::GUICatch, this, m_input_signal));
 	window->Add(table);
@@ -122,7 +122,6 @@ void FluidPanel::OnScaleChange(PARMAP param_map, Fluid2DCPU::Parameters *paramet
 		break;
 	//	Boolean Check
 	case GRID:
-		std::cout << "GRID " << check_ptr->IsActive() << std::endl;
 		parameters->grid = check_ptr->IsActive();
 		break;
 	case BUOYANCY:

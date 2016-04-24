@@ -4,22 +4,9 @@
 #define index(i,j) ((i) + (DIM) *(j))
 #define SWAP(a0, a) {float *tmp = a0; a0 = a; a = tmp;}
 #define CLAMP(v, a, b) (a + (v - a) / (b - a))
-//// Texture reference for reading velocity field
-//texture<float, 1> texref;
-//static cudaArray *array = NULL;
-//
-//// Particle data
-//extern GLuint pbo;                 // OpenGL vertex buffer object
-//extern struct cudaGraphicsResource *cuda_pbo_resource; // handles OpenGL-CUDA exchange
-//
-//extern GLuint tex;
-//// Texture pitch
-//extern size_t tPitch;
 
-//extern GLuint m_FluidTextureName[2];
-//extern CUarray m_cudaArray[2];
-//extern CUgraphicsResource m_cuda_graphicsResource[2];
 extern uchar4 *d_textureBufferData;
+
 //velocity and pressure
 float *d_u, *d_v;
 float *d_u0, *d_v0;
@@ -52,8 +39,6 @@ __global__ void texture_K(int size, uchar4 *surface, float *dens)
 	const float treshold1 = 1.;
 	const float treshold2 = 4.;
 	const float treshold3 = 10.;
-
-	
 
 	// Skip Boundary values
 	if (i<1 || i>N || j<1 || j>N) {

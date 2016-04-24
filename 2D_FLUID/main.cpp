@@ -12,8 +12,6 @@
 
 char* ref_file = NULL;
 
-GLuint quad_tex;
-
 sf::Clock fps_clock, sim_clock;
 float current_time, previous_time = 0.f, frame_count = 0.f, fps = 0.f;
 sf::Font* main_font;
@@ -28,42 +26,32 @@ bool gui = false; // GUI input signal
 Fluid2DCPU* fluid_solver;
 Vector2F* particles = NULL;
 
+void Init();
 void InitGL();
+void Clean();
 void Display(sf::RenderWindow &window);
 void DrawGrid(bool);
 void CreateGUI(sfg::Desktop& desktop);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
-void applyColor(float x, float, float);
+void ApplyColour(float x, float, float);
 void HandleInput(sf::RenderWindow &window, sf::Event &event);
-
-float myrand(void);
 
 int main()
 {
 	// An sf::Window for raw OpenGL rendering.
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 4;
-	sf::RenderWindow app_window(sf::VideoMode(WIDTH, HEIGHT), "2D Fluid Simulator CPU", sf::Style::Default, settings);
+	sf::RenderWindow app_window(sf::VideoMode(WIDTH, HEIGHT), "2D Fluid Simulator CPU", sf::Style::Close|sf::Style::Titlebar, settings);
 	app_window.setVerticalSyncEnabled(true);
-	
-	main_font = new sf::Font;
-	main_font->loadFromFile("../Resources/arial.ttf");
 
-	fluid_solver = new Fluid2DCPU();
-	fluid_solver->Initialise(DIM);
-
-	panel = new FluidPanel(gui);
-	panel->Initialise(fluid_solver->m_parameters);
-	
+	// Init
+	Init();
 	app_window.setActive();
-
-	// Init GLEW functions
-	glewInit();
 	InitGL();
+
 	// SFML mainloop
 	sf::Event event;
-
 	while (app_window.isOpen()) {
 		CalculateFPS();
 		// Handle Input
@@ -72,16 +60,35 @@ int main()
 		Display(app_window);
 	}
 
-	// cleanup
-	delete main_font;
-	delete fluid_solver;
-	delete panel;
+	Clean();
 	
 	return 0;
 }
 
+void Clean()
+{
+	// cleanup
+	delete main_font;
+	delete fluid_solver;
+	delete panel;
+}
+
+void Init()
+{
+	main_font = new sf::Font;
+	main_font->loadFromFile("../Resources/arial.ttf");
+
+	fluid_solver = new Fluid2DCPU();
+	fluid_solver->Initialise(DIM);
+
+	panel = new FluidPanel(gui);
+	panel->Initialise(fluid_solver->m_parameters);
+}
+
 void InitGL()
 {
+	// Init GLEW functions
+	glewInit();
 	// GL_Display Init
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -104,7 +111,14 @@ void Display(sf::RenderWindow &window)
 
 	// Render Density
 	glPushMatrix();
-	glTranslatef(WIDTH/4.f, HEIGHT/4.f, 0.f);
+	glTranslatef((WIDTH/2.f - GRID_WIDTH/2.f) + 100.f, (HEIGHT/2.f - GRID_HEIGHT/2.f), 0.f);
+	glBegin(GL_QUADS);
+	glColor3i(0, 0, 0);
+	glVertex2i(0, 0);
+	glVertex2i(GRID_WIDTH, 0);
+	glVertex2i(GRID_WIDTH, GRID_HEIGHT);
+	glVertex2i(0, GRID_HEIGHT);
+	glEnd();
 	for (int i = 1; i <= DIM; i++) {
 		for (int j = 1; j <= DIM; j++) {
 			int cell_idx = fluid_solver->index(i, j);
@@ -119,29 +133,29 @@ void Display(sf::RenderWindow &window)
 				glBegin(GL_QUADS);
 				
 				if (j < DIM - 1)
-					applyColor(fluid_solver->dens[fluid_solver->index(i, j+1)], 
+					ApplyColour(fluid_solver->dens[fluid_solver->index(i, j+1)], 
 							   fluid_solver->u[fluid_solver->index(i, j+1)], 
 							   fluid_solver->v[fluid_solver->index(i, j+1)]);
 				else
-					applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+					ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
 				glVertex2f(0.f, TILE_SIZE_Y);
 				
-				applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+				ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
 				glVertex2f(0.f, 0.f);
 
 				if (i < DIM - 1)
-					applyColor(fluid_solver->dens[fluid_solver->index(i + 1, j)], 
+					ApplyColour(fluid_solver->dens[fluid_solver->index(i + 1, j)], 
 							   fluid_solver->u[fluid_solver->index(i + 1, j)], 
 							   fluid_solver->v[fluid_solver->index(i + 1, j)]);
 				else
-					applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+					ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
 				glVertex2f(TILE_SIZE_X, 0.f);
 				if (i < DIM - 1 && j < DIM - 1)
-					applyColor(fluid_solver->dens[fluid_solver->index(i + 1, j + 1)],
+					ApplyColour(fluid_solver->dens[fluid_solver->index(i + 1, j + 1)],
 					fluid_solver->u[fluid_solver->index(i + 1, j + 1)],
 					fluid_solver->v[fluid_solver->index(i + 1, j + 1)]);
 				else
-					applyColor(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+					ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
 				glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
 				glEnd();
 				glPopMatrix();
@@ -228,7 +242,7 @@ void CalculateFPS()
 	}
 }
 
-void applyColor(float x, float, float){
+void ApplyColour(float x, float, float){
 	const float treshold1 = 1.;
 	const float treshold2 = 4.;
 	const float treshold3 = 10.;

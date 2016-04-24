@@ -111,14 +111,7 @@ void Fluid2DCPU::vort_conf(float *u, float *v, float vort_str, float dt)
 		else{
 			m_curl[i] = curl(x, y);
 		}
-	}/*
-	for (int i = 1; i <= dim; i++)
-	{
-		for (int j = 1; j <= dim; j++)
-		{
-			m_curl[i] = curl(i, j);
-		}
-	}*/
+	}
 
 	for (int i = 1; i < dim; i++)
 	{
