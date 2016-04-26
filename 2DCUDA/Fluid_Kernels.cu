@@ -461,7 +461,7 @@ void step(int size,
 	// Density step
 	// Add Density Source
 	addConstantSource_K<<<1, 1>>>(size, d_d, s_d_i, s_d_j, s_d_val, dt);
-	addConstantSource_K<<<1, 1>>>(size, d_d, 128, 248, 100, dt);
+	addConstantSource_K<<<1, 1>>>(size, d_d, 128, 248, 1000, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_d0, d_d);
@@ -475,11 +475,11 @@ void step(int size,
 	cudaMemset(d_u0, 0, (size*size) * sizeof(float));
 	cudaMemset(d_v0, 0, (size*size) * sizeof(float));
 	cudaMemset(d_d0, 0, (size*size) * sizeof(float));
-	return;
 }
 
 extern "C"
 void createTexture(int size, uchar4* d_texture)
 {
 	texture_K<<<BLOCKS,THREADS>>>(size, d_texture, d_d);
+	cudaDeviceSynchronize();
 }

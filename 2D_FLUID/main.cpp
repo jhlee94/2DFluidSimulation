@@ -10,8 +10,6 @@
 #include "cFluidPanel.h"
 #define CLAMP(v, a, b) (a + (v - a) / (b - a))
 
-char* ref_file = NULL;
-
 sf::Clock fps_clock, sim_clock;
 float current_time, previous_time = 0.f, frame_count = 0.f, fps = 0.f;
 sf::Font* main_font;
@@ -104,7 +102,7 @@ void Display(sf::RenderWindow &window)
 	auto delta = sim_clock.restart().asSeconds();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	
 	// Step Fluid
 	fluid_solver->step();
@@ -112,8 +110,8 @@ void Display(sf::RenderWindow &window)
 	// Render Density
 	glPushMatrix();
 	glTranslatef((WIDTH/2.f - GRID_WIDTH/2.f) + 100.f, (HEIGHT/2.f - GRID_HEIGHT/2.f), 0.f);
+	//glColor3i(0, 1, 1);
 	glBegin(GL_QUADS);
-	glColor3i(0, 0, 0);
 	glVertex2i(0, 0);
 	glVertex2i(GRID_WIDTH, 0);
 	glVertex2i(GRID_WIDTH, GRID_HEIGHT);
