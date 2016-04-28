@@ -107,10 +107,8 @@ void Fluid2DCPU::vort_conf(float *u, float *v, float vort_str, float dt)
 	{
 		int x = i % (dim + 2);
 		int y = i / (dim + 2);
-		if (x<1 || x>dim || y<1 || y>dim) {}
-		else{
-			m_curl[i] = curl(x, y);
-		}
+		if (x<1 || x>dim || y<1 || y>dim);
+		else m_curl[i] = curl(x, y);
 	}
 
 	for (int i = 1; i < dim; i++)

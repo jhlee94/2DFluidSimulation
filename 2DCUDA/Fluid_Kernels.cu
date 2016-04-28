@@ -36,9 +36,12 @@ __global__ void texture_K(int size, uchar4 *surface, float *dens)
 	int j = gtidx / size;
 	int N = (size - 2);
 
-	const float treshold1 = 1.;
-	const float treshold2 = 4.;
-	const float treshold3 = 10.;
+	const float treshold1 = 1.f;
+	const float treshold2 = 3.f;
+	const float treshold3 = 5.f;
+	const float treshold4 = 6.f;
+	const float treshold5 = 8.f;
+	const float treshold6 = 10.f;
 
 	// Skip Boundary values
 	if (i<1 || i>N || j<1 || j>N) {
@@ -66,12 +69,33 @@ __global__ void texture_K(int size, uchar4 *surface, float *dens)
 			color.y = 255 * (CLAMP(pvalue, treshold1, treshold2) - treshold1);
 			color.z = 0;
 		}
-		/* white */
+		/* green */
 		else if (pvalue < treshold3){
 			color.w = 255;
-			color.x = 255;
+			color.x = 255 - 255 * (CLAMP(pvalue, treshold2, treshold3) - treshold2);
 			color.y = 255;
-			color.z = 255 * (CLAMP(pvalue, treshold2, treshold3) - treshold2);
+			color.z = 0;
+		}
+		/* light blue */
+		else if (pvalue < treshold4){
+			color.w = 255;
+			color.x = 0;
+			color.y = 255;
+			color.z = 255 * (CLAMP(pvalue, treshold3, treshold4) - treshold3);
+		}
+		/* blue */
+		else if (pvalue < treshold5){
+			color.w = 255;
+			color.x = 0;
+			color.y = 255 - 255 * (CLAMP(pvalue, treshold4, treshold5) - treshold4);
+			color.z = 255;
+		}
+		/* purple */
+		else if (pvalue < treshold6){
+			color.w = 255;
+			color.x = 255 * (CLAMP(pvalue, treshold5, treshold6) - treshold5);
+			color.y = 0;
+			color.z = 255;
 		}
 		else{
 			color.w = 255;
@@ -118,13 +142,14 @@ __global__ void advect_K(int size, float *d, float *d0, float *u, float *v, floa
 	int j = gtidx / size;
 	int N = (size - 2);
 	
+	if (i<1 || i>N || j<1 || j>N) return;
+
 	int i0, j0, i1, j1;
 	float x, y, s0, t0, s1, t1, dt0;
 
 	float dx = 1.0f / N;
 	dx = 1 / dx;
 	dt0 = (dt*dx)/1;
-	if (i<1 || i>N || j<1 || j>N) return;
 
 	x = i - dt0*u[index(i, j)];
 	y = j - dt0*v[index(i, j)];
@@ -340,7 +365,7 @@ void freeCUDA()
 	cudaFree(d_v0);
 	cudaFree(d_div);
 	cudaFree(d_curl);
-	cudaFree(d_textureBufferData);
+	//cudaFree(d_textureBufferData);
 	cudaDeviceReset();
 }
 
@@ -461,7 +486,7 @@ void step(int size,
 	// Density step
 	// Add Density Source
 	addConstantSource_K<<<1, 1>>>(size, d_d, s_d_i, s_d_j, s_d_val, dt);
-	addConstantSource_K<<<1, 1>>>(size, d_d, 128, 248, 100, dt);
+	addConstantSource_K<<<1, 1>>>(size, d_d, 256, 496, 100, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_d0, d_d);

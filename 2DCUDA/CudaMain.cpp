@@ -67,7 +67,7 @@ int main(void)
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 4;
 	sf::RenderWindow app_window(sf::VideoMode(WIDTH, HEIGHT), "2D Fluid Simulator GPU", sf::Style::Default, settings);
-	app_window.setVerticalSyncEnabled(true);
+	//app_window.setVerticalSyncEnabled(true);
 
 	main_font = new sf::Font;
 	main_font->loadFromFile("../Resources/arial.ttf");
@@ -250,31 +250,10 @@ int main(void)
 		//			glPushMatrix();
 		//			glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
 		//			glBegin(GL_QUADS);
-		//			if (j < DIM - 1)
-		//				applyColor(sd[index(i, j + 1)],
-		//				su[index(i, j + 1)],
-		//				sv[index(i, j + 1)]);
-		//			else
-		//				applyColor(density, su[cell_idx], sv[cell_idx]);
+		//				applyColor(density);
 		//			glVertex2f(0.f, TILE_SIZE_Y);
-
-		//			applyColor(density, su[cell_idx], sv[cell_idx]);
 		//			glVertex2f(0.f, 0.f);
-
-		//			if (i < DIM - 1)
-		//				applyColor(sd[index(i + 1, j)],
-		//				su[index(i + 1, j)],
-		//				sv[index(i + 1, j)]);
-		//			else
-		//				applyColor(density, su[cell_idx], sv[cell_idx]);
 		//			glVertex2f(TILE_SIZE_X, 0.f);
-
-		//			if (i < DIM - 1 && j < DIM - 1)
-		//				applyColor(sd[index(i + 1, j + 1)],
-		//				su[index(i + 1, j + 1)],
-		//				sv[index(i + 1, j + 1)]);
-		//			else
-		//				applyColor(density, su[cell_idx], sv[cell_idx]);
 		//			glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
 		//			glEnd();
 		//			glPopMatrix();
@@ -293,8 +272,8 @@ int main(void)
 		PrintString(5, 16, fps_text, "FPS: %5.2f", fps);
 		app_window.draw(fps_text);
 		// SFGUI Update
-		desktop.Update(delta);
-		sfgui.Display(app_window);
+		/*desktop.Update(delta);
+		sfgui.Display(app_window);*/
 		app_window.popGLStates();
 
 		// Finally, Display all
