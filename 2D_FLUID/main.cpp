@@ -14,11 +14,15 @@ sf::Clock fps_clock, sim_clock;
 float current_time, previous_time = 0.f, frame_count = 0.f, fps = 0.f;
 sf::Font* main_font;
 
+sf::Texture texture;
+sf::Sprite* fluid_sprite;
+
 int mouseX0 = 0, mouseY0 = 0;
 
 // Fluid GUI Panel
 FluidPanel* panel = { nullptr };
 bool gui = false; // GUI input signal
+
 
 // FluidSolver
 Fluid2DCPU* fluid_solver;
@@ -41,9 +45,10 @@ int main()
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 4;
 	sf::RenderWindow app_window(sf::VideoMode(WIDTH, HEIGHT), "2D Fluid Simulator CPU", sf::Style::Close|sf::Style::Titlebar, settings);
-	app_window.setVerticalSyncEnabled(true);
+	//app_window.setVerticalSyncEnabled(true);
 
 	// Init
+
 	Init();
 	app_window.setActive();
 	InitGL();
@@ -66,7 +71,9 @@ int main()
 void Clean()
 {
 	// cleanup
+	glDisable(GL_LINE_SMOOTH);
 	delete main_font;
+	delete fluid_sprite;
 	delete fluid_solver;
 	delete panel;
 }
@@ -79,7 +86,19 @@ void Init()
 	fluid_solver = new Fluid2DCPU();
 	fluid_solver->Initialise(DIM);
 
-	panel = new FluidPanel(gui);
+	// create an empty 200x200 texture
+	if (!texture.create((DIM+2), (DIM+2)))
+	{
+		// error...
+	}
+	texture.setSmooth(true);
+
+	fluid_sprite = new sf::Sprite(texture);
+	fluid_sprite->setOrigin((DIM + 2) / 2.f, (DIM + 2) / 2.f);
+	fluid_sprite->setPosition(WIDTH / 2 + 100.f, HEIGHT / 2);
+	fluid_sprite->setScale((GRID_WIDTH+2.f)/(DIM+2.f),(GRID_HEIGHT+2.f)/(DIM+2.f));
+
+	panel = new FluidPanel(&gui);
 	panel->Initialise(fluid_solver->m_parameters);
 }
 
@@ -87,6 +106,9 @@ void InitGL()
 {
 	// Init GLEW functions
 	glewInit();
+	glEnable(GL_LINE_SMOOTH);
+	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
 	// GL_Display Init
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -106,68 +128,52 @@ void Display(sf::RenderWindow &window)
 	
 	// Step Fluid
 	fluid_solver->step();
+	texture.update(fluid_solver->pixels);
 
-	// Render Density
-	glPushMatrix();
-	glTranslatef((WIDTH/2.f - GRID_WIDTH/2.f) + 100.f, (HEIGHT/2.f - GRID_HEIGHT/2.f), 0.f);
-	//glColor3i(0, 1, 1);
-	glBegin(GL_QUADS);
-	glVertex2i(0, 0);
-	glVertex2i(GRID_WIDTH, 0);
-	glVertex2i(GRID_WIDTH, GRID_HEIGHT);
-	glVertex2i(0, GRID_HEIGHT);
-	glEnd();
-	for (int i = 1; i <= DIM; i++) {
-		for (int j = 1; j <= DIM; j++) {
-			int cell_idx = fluid_solver->index(i, j);
+	//// Render Density
+	//glPushMatrix();
+	//glTranslatef((WIDTH/2.f - GRID_WIDTH/2.f) + 100.f, (HEIGHT/2.f - GRID_HEIGHT/2.f), 0.f);
+	//glColor3f(1, 1, 1);
+	//glBegin(GL_LINE_LOOP);
+	//glLineWidth(0.1f);
+	//glVertex2i(-1, -1);
+	//glVertex2i(GRID_WIDTH+1, -1);
+	//glVertex2i(GRID_WIDTH+1, GRID_HEIGHT+1);
+	//glVertex2i(-1, GRID_HEIGHT+1);
+	//glEnd();
+	//for (int i = 1; i <= DIM; i++) {
+	//	for (int j = 1; j <= DIM; j++) {
+	//		int cell_idx = fluid_solver->index(i, j);
 
-			float density = fluid_solver->dens[cell_idx];
-			float color;
-			if (density > 0)
-			{
-				glPushMatrix();
-				//glScalef(0.5f, 0.5f, 1.0);
-				glTranslatef(i*TILE_SIZE_X - TILE_SIZE_X, j*TILE_SIZE_Y - TILE_SIZE_Y, 0);
-				glBegin(GL_QUADS);
-				
-				if (j < DIM - 1)
-					ApplyColour(fluid_solver->dens[fluid_solver->index(i, j+1)], 
-							   fluid_solver->u[fluid_solver->index(i, j+1)], 
-							   fluid_solver->v[fluid_solver->index(i, j+1)]);
-				else
-					ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-				glVertex2f(0.f, TILE_SIZE_Y);
-				
-				ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-				glVertex2f(0.f, 0.f);
+	//		float density = fluid_solver->dens[cell_idx];
+	//		float color;
+	//		if (density > 0)
+	//		{
+	//			glPushMatrix();
+	//			//glScalef(0.5f, 0.5f, 1.0);
+	//			glTranslatef(i*TILE_SIZE_X - TILE_SIZE_X, j*TILE_SIZE_Y - TILE_SIZE_Y, 0);
+	//			glBegin(GL_QUADS);
+	//			ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
+	//			glVertex2f(0.f, TILE_SIZE_Y);				
+	//			glVertex2f(0.f, 0.f);
+	//			glVertex2f(TILE_SIZE_X, 0.f);
+	//			glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
+	//			glEnd();
+	//			glPopMatrix();
+	//		}
+	//	}
+	//}
+	//// Grid Lines 
+	//DrawGrid(fluid_solver->m_parameters.grid);
+	//glPopMatrix();
 
-				if (i < DIM - 1)
-					ApplyColour(fluid_solver->dens[fluid_solver->index(i + 1, j)], 
-							   fluid_solver->u[fluid_solver->index(i + 1, j)], 
-							   fluid_solver->v[fluid_solver->index(i + 1, j)]);
-				else
-					ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-				glVertex2f(TILE_SIZE_X, 0.f);
-				if (i < DIM - 1 && j < DIM - 1)
-					ApplyColour(fluid_solver->dens[fluid_solver->index(i + 1, j + 1)],
-					fluid_solver->u[fluid_solver->index(i + 1, j + 1)],
-					fluid_solver->v[fluid_solver->index(i + 1, j + 1)]);
-				else
-					ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-				glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
-				glEnd();
-				glPopMatrix();
-			}
-		}
-	}
-	// Grid Lines 
-	DrawGrid(fluid_solver->m_parameters.grid);
-	glPopMatrix();
-
+	
 
 	// SFML rendering.
 	// Draw FPS Text
 	window.pushGLStates();
+	window.draw(*fluid_sprite);
+
 	PrintString(5, 16, fps_text, "FPS: %5.2f", fps);
 	window.draw(fps_text);
 
@@ -185,7 +191,7 @@ void DrawGrid(bool x)
 {
 	if (x)
 	{
-		glColor4f(0.f, 1.f, 0.f, 1.f);
+		glColor4f(1.f, 1.f, 1.f, 1.0f);
 		for (float x = TILE_SIZE_X; x < GRID_WIDTH; x += TILE_SIZE_X){
 			glBegin(GL_LINES);
 			glVertex2f(0, x);
@@ -269,7 +275,9 @@ void ApplyColour(float x, float, float){
 void HandleInput(sf::RenderWindow &window, sf::Event &event)
 {
 	while (window.pollEvent(event)) {
+
 		panel->HandleEvent(event);
+		if (gui) break;
 		switch (event.type)
 		{
 		case sf::Event::Closed:
@@ -325,13 +333,13 @@ void HandleInput(sf::RenderWindow &window, sf::Event &event)
 		
 	}
 
-	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)){
+	if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && !gui){
 		int i = (sf::Mouse::getPosition(window).x / static_cast<float>(WIDTH)) * DIM + 1;
 		int j = (sf::Mouse::getPosition(window).y / static_cast<float>(HEIGHT)) * DIM + 1;
-		fluid_solver->dens_prev[fluid_solver->index(i, j)] = 300.f;
-		fluid_solver->dens_prev[fluid_solver->index(i - 1, j)] = 300.f;
-		fluid_solver->dens_prev[fluid_solver->index(i + 1, j)] = 300.f;
-		fluid_solver->dens_prev[fluid_solver->index(i - 2, j)] = 300.f;
-		fluid_solver->dens_prev[fluid_solver->index(i + 2, j)] = 300.f;
+		fluid_solver->dens[fluid_solver->index(i, j)] = 10.f;
+		fluid_solver->dens[fluid_solver->index(i - 1, j)] = 10.f;
+		fluid_solver->dens[fluid_solver->index(i + 1, j)] = 10.f;
+		fluid_solver->dens[fluid_solver->index(i - 2, j)] = 10.f;
+		fluid_solver->dens[fluid_solver->index(i + 2, j)] = 10.f;
 	}
 }

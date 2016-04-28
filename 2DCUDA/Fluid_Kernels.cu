@@ -1,3 +1,7 @@
+/* This codes extends Stam¡¯s algorithm which is
+copyright and patented by Alias. Hence this extension
+should only be used for academic research and not for
+commercial applications. */
 #pragma once
 #include "Fluid_Kernels.cuh"
 
@@ -421,6 +425,18 @@ void step(int size,
 	addConstantSource_K<<<1, 1>>>(size, d_u, s_v_i, s_v_j, s_u_val, dt);
 	addConstantSource_K<<<1, 1>>>(size, d_v, s_v_i, s_v_j, s_v_val, dt);
 	cudaDeviceSynchronize();
+	
+	SWAP(d_u0, d_u);
+	diffuse(size, 1, d_u, d_u0, viscosity, iteration);
+	SWAP(d_v0, d_v);
+	diffuse(size, 2, d_v, d_v0, viscosity, iteration);
+
+	project(size, d_u, d_v, d_u0, d_v0, iteration);
+
+	SWAP(d_u0, d_u);
+	SWAP(d_v0, d_v);
+	advect(size, 1, d_u, d_u0, d_u0, d_v0, dt);
+	advect(size, 1, d_v, d_v0, d_u0, d_v0, dt);
 
 	//Vorticity
 	if (true) {
@@ -442,18 +458,6 @@ void step(int size,
 		set_bnd_K<<<1, N>>>(size, 2, d_v);
 		cudaDeviceSynchronize();
 	}
-	
-	SWAP(d_u0, d_u);
-	diffuse(size, 1, d_u, d_u0, viscosity, iteration);
-	SWAP(d_v0, d_v);
-	diffuse(size, 2, d_v, d_v0, viscosity, iteration);
-
-	project(size, d_u, d_v, d_u0, d_v0, iteration);
-
-	SWAP(d_u0, d_u);
-	SWAP(d_v0, d_v);
-	advect(size, 1, d_u, d_u0, d_u0, d_v0, dt);
-	advect(size, 1, d_v, d_v0, d_u0, d_v0, dt);
 
 	project(size, d_u, d_v, d_u0, d_v0, iteration);
 	
@@ -461,7 +465,7 @@ void step(int size,
 	// Density step
 	// Add Density Source
 	addConstantSource_K<<<1, 1>>>(size, d_d, s_d_i, s_d_j, s_d_val, dt);
-	addConstantSource_K<<<1, 1>>>(size, d_d, 128, 248, 1000, dt);
+	addConstantSource_K<<<1, 1>>>(size, d_d, DIM/2.f, DIM-10.f, 100, dt);
 	cudaDeviceSynchronize();
 
 	SWAP(d_d0, d_d);
@@ -471,10 +475,10 @@ void step(int size,
 
 	//cudaMemcpy(sd, d_d, (size*size)*sizeof(float), cudaMemcpyDeviceToHost);
 
-	// Reset for next step
-	cudaMemset(d_u0, 0, (size*size) * sizeof(float));
-	cudaMemset(d_v0, 0, (size*size) * sizeof(float));
-	cudaMemset(d_d0, 0, (size*size) * sizeof(float));
+	//// Reset for next step *density is not conserved*
+	//cudaMemset(d_u0, 0, (size*size) * sizeof(float));
+	//cudaMemset(d_v0, 0, (size*size) * sizeof(float));
+	//cudaMemset(d_d0, 0, (size*size) * sizeof(float));
 }
 
 extern "C"

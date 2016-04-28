@@ -67,7 +67,7 @@ int main(void)
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 4;
 	sf::RenderWindow app_window(sf::VideoMode(WIDTH, HEIGHT), "2D Fluid Simulator GPU", sf::Style::Default, settings);
-	app_window.setVerticalSyncEnabled(true);
+	//app_window.setVerticalSyncEnabled(true);
 
 	main_font = new sf::Font;
 	main_font->loadFromFile("../Resources/arial.ttf");
@@ -99,7 +99,7 @@ int main(void)
 	glewInit();
 
 	// GUI
-	auto viscosity_scale = sfg::Scale::Create(0.f, 0.01f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
+	auto viscosity_scale = sfg::Scale::Create(0.f, 0.005f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
 	auto diffusion_scale = sfg::Scale::Create(0.f, 0.005f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
 	auto solver_scale = sfg::Scale::Create(0.f, 40.f, 1.0f, sfg::Scale::Orientation::HORIZONTAL);
 	auto dt_scale = sfg::Scale::Create(0.f, 0.5f, .01f, sfg::Scale::Orientation::HORIZONTAL);
@@ -184,8 +184,8 @@ int main(void)
 					if ((mouseX >= 0 && mouseX < WIDTH) && (mouseY >= 0 && mouseY < HEIGHT)){
 						s_v_i = (mouseX / static_cast<float>(WIDTH)) * DIM + 1;
 						s_v_j = (mouseY / static_cast<float>(HEIGHT)) * DIM + 1;
-						float dirX = (mouseX - mouseX0) * 100;
-						float dirY = (mouseY - mouseY0) * 100;
+						float dirX = (mouseX - mouseX0) * 300;
+						float dirY = (mouseY - mouseY0) * 300;
 						s_u_val = dirX;
 						s_v_val = dirY;
 
@@ -207,7 +207,7 @@ int main(void)
 			dt_scale->GetValue(), 
 			viscosity_scale->GetValue(), 
 			diffusion_scale->GetValue(), 
-			0.1f, 
+			0.3f, 
 			0.0f, 
 			solver_scale->GetValue(), 
 			sd,
@@ -250,31 +250,10 @@ int main(void)
 		//			glPushMatrix();
 		//			glTranslatef(i*TILE_SIZE_X, j*TILE_SIZE_Y, 0);
 		//			glBegin(GL_QUADS);
-		//			if (j < DIM - 1)
-		//				applyColor(sd[index(i, j + 1)],
-		//				su[index(i, j + 1)],
-		//				sv[index(i, j + 1)]);
-		//			else
-		//				applyColor(density, su[cell_idx], sv[cell_idx]);
-		//			glVertex2f(0.f, TILE_SIZE_Y);
-
 		//			applyColor(density, su[cell_idx], sv[cell_idx]);
+		//			glVertex2f(0.f, TILE_SIZE_Y);
 		//			glVertex2f(0.f, 0.f);
-
-		//			if (i < DIM - 1)
-		//				applyColor(sd[index(i + 1, j)],
-		//				su[index(i + 1, j)],
-		//				sv[index(i + 1, j)]);
-		//			else
-		//				applyColor(density, su[cell_idx], sv[cell_idx]);
 		//			glVertex2f(TILE_SIZE_X, 0.f);
-
-		//			if (i < DIM - 1 && j < DIM - 1)
-		//				applyColor(sd[index(i + 1, j + 1)],
-		//				su[index(i + 1, j + 1)],
-		//				sv[index(i + 1, j + 1)]);
-		//			else
-		//				applyColor(density, su[cell_idx], sv[cell_idx]);
 		//			glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
 		//			glEnd();
 		//			glPopMatrix();

@@ -2,6 +2,7 @@
 #define _FLUID_PANEL_H_
 
 // Includes
+#include <sstream>
 #include <SFML\Graphics\RenderWindow.hpp>
 #include <SFGUI\SFGUI.hpp>
 #include <SFGUI\Widgets.hpp>
@@ -26,11 +27,19 @@ private:
 
 	sfg::SFGUI m_sfgui;
 	sfg::Desktop desktop;
-	bool &m_input_signal;
+	bool *m_input_signal;
+
+
+	std::string PrintText(std::string text, const float value, int precision)
+	{
+		std::ostringstream oss;
+		oss << text << " [" << std::setprecision(precision) << std::fixed << value << "]";
+		return oss.str();
+	}
 
 public:
 	// Constructor
-	FluidPanel(bool &input);
+	FluidPanel(bool *input);
 	virtual ~FluidPanel();
 
 	// Render Functions
@@ -43,10 +52,12 @@ public:
 	void OnScaleChange(PARMAP param_map, 
 					   Fluid2DCPU::Parameters *parameters, 
 					   std::shared_ptr<sfg::Scale> pointer, 
-					   std::shared_ptr<sfg::CheckButton> check_ptr);
+					   std::shared_ptr<sfg::CheckButton> check_ptr,
+					   std::shared_ptr<sfg::Label> label_ptr);
 
 	// GUI Input Catcher
-	void GUICatch(bool &input);
+	void OnMouseLeave(bool *input);
+	void OnMouseEnter(bool *input);
 };
 
 #endif // !_FLUID_PANEL_H_

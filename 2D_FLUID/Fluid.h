@@ -2,6 +2,7 @@
 #define _FLUID2DCPU_H_
 
 // Includes
+#include <SFML\Graphics.hpp>
 #include <math.h>
 #include "Config.h"
 
@@ -28,6 +29,7 @@ public:
 	float	*v, *v_prev;	// velocity y  Field
 	float	*dens, *dens_prev; // Density Field
 	float	*m_curl; // Curl Data
+	sf::Uint8* pixels;
 
 public:
 	Fluid2DCPU() {};
@@ -40,16 +42,19 @@ public:
 		delete[] dens;
 		delete[] dens_prev;
 		delete[] m_curl;
+		delete[] pixels;
 	}
 
 	// Class Functions
 	void Initialise(unsigned int N);
+	void UpdateTexture();
+	void ApplyColour(sf::Uint8 *pixels, float x, int i);
 
 	// Solver Functions
 	int index(int i, int j);
 	void set_bnd(int b, float *x);
 	void addSource(float *d, float *s, float dt);
-	void linearSolve(int b, float* x, float* x0, float a, float c);
+	void gaussSeidel(int b, float* x, float* x0, float a, float c);
 	void diffuse(int b, float *x, float *x0, float diff, float dt);
 	void advect(int b, float *d, float *d0, float *u, float *v, float dt);
 	float curl(int i, int j);
