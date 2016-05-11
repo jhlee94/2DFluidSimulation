@@ -28,11 +28,15 @@ bool gui = false; // GUI input signal
 Fluid2DCPU* fluid_solver;
 Vector2F* particles = NULL;
 
+
+sf::CircleShape circle;
+
 void Init();
 void InitGL();
 void Clean();
 void Display(sf::RenderWindow &window);
 void DrawGrid(bool);
+void DrawVectorField(bool);
 void CreateGUI(sfg::Desktop& desktop);
 void PrintString(float x, float y, sf::Text& text, const char* string, ...);
 void CalculateFPS(void);
@@ -52,6 +56,10 @@ int main()
 	Init();
 	app_window.setActive();
 	InitGL();
+
+	circle.setRadius(10);
+	circle.setPosition(fluid_sprite->getPosition());
+	circle.setFillColor(sf::Color::White);
 
 	// SFML mainloop
 	sf::Event event;
@@ -127,6 +135,7 @@ void Display(sf::RenderWindow &window)
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	
 	// Step Fluid
+	//fluid_solver->m_parameters.dt = delta;
 	fluid_solver->step();
 	texture.update(fluid_solver->pixels);
 
@@ -141,30 +150,8 @@ void Display(sf::RenderWindow &window)
 	//glVertex2i(GRID_WIDTH+1, GRID_HEIGHT+1);
 	//glVertex2i(-1, GRID_HEIGHT+1);
 	//glEnd();
-	//for (int i = 1; i <= DIM; i++) {
-	//	for (int j = 1; j <= DIM; j++) {
-	//		int cell_idx = fluid_solver->index(i, j);
-
-	//		float density = fluid_solver->dens[cell_idx];
-	//		float color;
-	//		if (density > 0)
-	//		{
-	//			glPushMatrix();
-	//			//glScalef(0.5f, 0.5f, 1.0);
-	//			glTranslatef(i*TILE_SIZE_X - TILE_SIZE_X, j*TILE_SIZE_Y - TILE_SIZE_Y, 0);
-	//			glBegin(GL_QUADS);
-	//			ApplyColour(density, fluid_solver->u[cell_idx], fluid_solver->v[cell_idx]);
-	//			glVertex2f(0.f, TILE_SIZE_Y);				
-	//			glVertex2f(0.f, 0.f);
-	//			glVertex2f(TILE_SIZE_X, 0.f);
-	//			glVertex2f(TILE_SIZE_X, TILE_SIZE_Y);
-	//			glEnd();
-	//			glPopMatrix();
-	//		}
-	//	}
-	//}
+	
 	//// Grid Lines 
-	//DrawGrid(fluid_solver->m_parameters.grid);
 	//glPopMatrix();
 
 	
@@ -173,6 +160,7 @@ void Display(sf::RenderWindow &window)
 	// Draw FPS Text
 	window.pushGLStates();
 	window.draw(*fluid_sprite);
+	//window.draw(circle);
 
 	PrintString(5, 16, fps_text, "FPS: %5.2f", fps);
 	window.draw(fps_text);
@@ -182,6 +170,8 @@ void Display(sf::RenderWindow &window)
 	panel->Display(window);
 	window.popGLStates();
 
+	DrawGrid(fluid_solver->m_parameters.grid);
+	DrawVectorField(fluid_solver->m_parameters.velocity);
 	// Finally, Display all
 	window.display();
 	//glFlush();
@@ -191,6 +181,8 @@ void DrawGrid(bool x)
 {
 	if (x)
 	{
+		glPushMatrix();
+		glTranslatef(fluid_sprite->getPosition().x - GRID_WIDTH / 2.f, fluid_sprite->getPosition().y - GRID_HEIGHT / 2.f, 0.f);
 		glColor4f(1.f, 1.f, 1.f, 1.0f);
 		for (float x = TILE_SIZE_X; x < GRID_WIDTH; x += TILE_SIZE_X){
 			glBegin(GL_LINES);
@@ -204,6 +196,33 @@ void DrawGrid(bool x)
 			glVertex2f(y, GRID_HEIGHT);
 			glEnd();
 		};
+		glPopMatrix();
+	}
+}
+
+
+void DrawVectorField(bool c)
+{
+	if (c){
+		float dx, dy;
+		for (int i = 0; i < DS; i++) {
+			int x = i % (DIM + 2);
+			int y = i / (DIM + 2);
+			dx = (x)* TILE_SIZE_X;
+			dy = (y)* TILE_SIZE_Y;
+			int cell_idx = fluid_solver->index(x, y);
+			float dx_u = dx + fluid_solver->u[cell_idx] * 10.f;
+			float dy_v = dy + fluid_solver->v[cell_idx] * 10.f;
+			glPushMatrix();
+			glTranslatef(fluid_sprite->getPosition().x - GRID_WIDTH / 2.f, fluid_sprite->getPosition().y - GRID_HEIGHT / 2.f, 0.f);
+			//glScalef(0.5f, 0.5f, 1.0);
+			glBegin(GL_LINES);
+			glColor3f(255, 255, 255);
+			glVertex2f(dx, dy);
+			glVertex2f(dx_u, dy_v);
+			glEnd();
+			glPopMatrix();
+		}
 	}
 }
 

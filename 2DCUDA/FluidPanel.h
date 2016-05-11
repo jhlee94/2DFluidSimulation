@@ -6,7 +6,8 @@
 #include <SFML\Graphics\RenderWindow.hpp>
 #include <SFGUI\SFGUI.hpp>
 #include <SFGUI\Widgets.hpp>
-#include "Fluid.h"
+
+#include "config.h"
 
 class FluidPanel
 {
@@ -22,8 +23,8 @@ private:
 		VORT_STR,
 		VORTICITY,
 		BUOYANCY,
-		VELOCITY,
-		GRID
+		GRID,
+		MACCORMACK
 	};
 
 	sfg::SFGUI m_sfgui;
@@ -39,22 +40,25 @@ private:
 	}
 
 public:
+	Parameters m_parameters;
+	
+public:
 	// Constructor
 	FluidPanel(bool *input);
 	virtual ~FluidPanel();
 
 	// Render Functions
-	void Initialise(Fluid2DCPU::Parameters &parameters);
+	void Initialise();
 	void Update(float dt);
 	void Display(sf::RenderWindow& window);
 	void HandleEvent(sf::Event &event);
 
 	// Scale Button Functions
-	void OnScaleChange(PARMAP param_map, 
-					   Fluid2DCPU::Parameters *parameters, 
-					   std::shared_ptr<sfg::Scale> pointer, 
-					   std::shared_ptr<sfg::CheckButton> check_ptr,
-					   std::shared_ptr<sfg::Label> label_ptr);
+	void OnScaleChange(PARMAP param_map,
+		Parameters *parameters,
+		std::shared_ptr<sfg::Scale> pointer,
+		std::shared_ptr<sfg::CheckButton> check_ptr,
+		std::shared_ptr<sfg::Label> label_ptr);
 
 	// GUI Input Catcher
 	void OnMouseLeave(bool *input);
