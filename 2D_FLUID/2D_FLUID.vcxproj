@@ -72,6 +72,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\SFGUI\lib;$(SolutionDir)\SFML-2.3.2\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>sfgui-s.lib;opengl32.lib;winmm.lib;freetype.lib;jpeg.lib;sfml-graphics-s.lib;sfml-window-s.lib;sfml-system-s.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -20,6 +20,7 @@ public:
 		float	viscosity;
 		bool	vorticity;
 		bool	buoyancy;
+		bool	velocity;
 		bool	grid;
 	} m_parameters;
 
@@ -29,6 +30,7 @@ public:
 	float	*v, *v_prev;	// velocity y  Field
 	float	*dens, *dens_prev; // Density Field
 	float	*m_curl; // Curl Data
+	float	*aux;
 	sf::Uint8* pixels;
 
 public:
@@ -54,6 +56,7 @@ public:
 	int index(int i, int j);
 	void set_bnd(int b, float *x);
 	void addSource(float *d, float *s, float dt);
+	void jacobi(int b, float* aux, float* x, float* x0, float a, float c);
 	void gaussSeidel(int b, float* x, float* x0, float a, float c);
 	void diffuse(int b, float *x, float *x0, float diff, float dt);
 	void advect(int b, float *d, float *d0, float *u, float *v, float dt);

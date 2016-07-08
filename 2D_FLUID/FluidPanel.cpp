@@ -16,9 +16,10 @@ void FluidPanel::Initialise(Fluid2DCPU::Parameters &parameters)
 	auto sigma_scale = sfg::Scale::Create(0.f, 1.0f, 0.1f, sfg::Scale::Orientation::HORIZONTAL);
 	auto solver_scale = sfg::Scale::Create(0.f, 100.f, 10.0f, sfg::Scale::Orientation::HORIZONTAL);
 	auto dt_scale = sfg::Scale::Create(0.f, 0.5f, .01f, sfg::Scale::Orientation::HORIZONTAL);
-	auto vort_scale = sfg::Scale::Create(0.f, 0.8f, .01f, sfg::Scale::Orientation::HORIZONTAL);
+	auto vort_scale = sfg::Scale::Create(0.f, 100.f, 1.f, sfg::Scale::Orientation::HORIZONTAL);
 	auto grid_check = sfg::CheckButton::Create("Show Grid");
 	auto vort_check = sfg::CheckButton::Create("Vorticity");
+	auto vel_check = sfg::CheckButton::Create("Velocity Field");
 	auto buo_check = sfg::CheckButton::Create("Buoyancy");
 
 	auto viscosity_label = sfg::Label::Create("Viscosity:");
@@ -40,6 +41,7 @@ void FluidPanel::Initialise(Fluid2DCPU::Parameters &parameters)
 	grid_check->GetSignal(sfg::CheckButton::OnToggle).Connect(std::bind(&FluidPanel::OnScaleChange, this, GRID, &parameters, nullptr, grid_check, nullptr));
 	vort_check->GetSignal(sfg::CheckButton::OnToggle).Connect(std::bind(&FluidPanel::OnScaleChange, this, VORTICITY, &parameters, nullptr, vort_check, nullptr));
 	buo_check->GetSignal(sfg::CheckButton::OnToggle).Connect(std::bind(&FluidPanel::OnScaleChange, this, BUOYANCY, &parameters, nullptr, buo_check, nullptr));
+	vel_check->GetSignal(sfg::CheckButton::OnToggle).Connect(std::bind(&FluidPanel::OnScaleChange, this, VELOCITY, &parameters, nullptr, vel_check, nullptr));
 	
 	auto table = sfg::Table::Create();
 	table->SetRowSpacings(3.f);
@@ -70,6 +72,7 @@ void FluidPanel::Initialise(Fluid2DCPU::Parameters &parameters)
 	table->Attach(vort_check, sf::Rect<sf::Uint32>(1, 8, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
 	table->Attach(buo_check, sf::Rect<sf::Uint32>(1, 9, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
 	table->Attach(grid_check, sf::Rect<sf::Uint32>(1, 10, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
+	table->Attach(vel_check, sf::Rect<sf::Uint32>(1, 11, 1, 1), sfg::Table::FILL, sfg::Table::FILL);
 	
 	auto window = sfg::Window::Create();
 	window->SetTitle("Fluid Panel");
@@ -91,15 +94,15 @@ void FluidPanel::Initialise(Fluid2DCPU::Parameters &parameters)
 	vort_scale->SetValue(parameters.vort_str);
 	buo_check->SetActive(parameters.buoyancy);
 	vort_check->SetActive(parameters.vorticity);
+	vel_check->SetActive(parameters.velocity);
 
 	viscosity_label->SetText(PrintText("Viscosity", parameters.viscosity,4));
 	diffusion_label->SetText(PrintText("Diffusion", parameters.diffusion,4));
 	kappa_label->SetText(PrintText("Kappa", parameters.kappa,2));
 	sigma_label->SetText(PrintText("Sigma", parameters.sigma,2));
-	vort_label->SetText(PrintText("Vorticity Strength", parameters.vort_str,2));
+	vort_label->SetText(PrintText("Vorticity Strength", parameters.vort_str,0));
 	solver_label->SetText(PrintText("Solver Iteration", parameters.iterations,0));
 	dt_label->SetText(PrintText("Time Step", parameters.dt,2));
-
 }
 void FluidPanel::Update(float dt)
 {
@@ -146,7 +149,7 @@ void FluidPanel::OnScaleChange(PARMAP param_map,
 		parameters->sigma = scale_ptr->GetValue();
 		break;
 	case VORT_STR:
-		label_ptr->SetText(PrintText("Vorticity Strength", parameters->vort_str, 2));
+		label_ptr->SetText(PrintText("Vorticity Strength", parameters->vort_str, 0));
 		parameters->vort_str = scale_ptr->GetValue();
 		break;
 	case DT:
@@ -162,6 +165,9 @@ void FluidPanel::OnScaleChange(PARMAP param_map,
 		break;
 	case VORTICITY:
 		parameters->vorticity = check_ptr->IsActive();
+		break;
+	case VELOCITY:
+		parameters->velocity = check_ptr->IsActive();
 		break;
 	default:
 		break;

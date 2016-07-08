@@ -20,17 +20,19 @@ void Fluid2DCPU::Initialise(unsigned int N)
 	v_prev = new float[dim2];
 	dens_prev = new float[dim2];
 	m_curl = new float[dim2];
-	pixels = new sf::Uint8[dim2*4];
+	aux = new float[dim2];
+	pixels = new sf::Uint8[dim2*4]; // *4 because there's 4 components RGBA
 
 	m_parameters.iterations = 10;
 	m_parameters.dt = 0.01f;
 	m_parameters.kappa = 0.3f;
-	m_parameters.sigma = 0.f;
+	m_parameters.sigma = 0.0f;
 	m_parameters.diffusion = 0.f;
 	m_parameters.viscosity = 0.f;
-	m_parameters.vort_str = 0.1f;
-	m_parameters.vorticity = true;
+	m_parameters.vort_str = 10.f;
+	m_parameters.vorticity = false;
 	m_parameters.buoyancy = true;
+	m_parameters.velocity = false;
 	m_parameters.grid = false;
 
 	//Initialise all to zero
@@ -75,6 +77,28 @@ void Fluid2DCPU::addSource(float *x, float *s, float dt)
 	}
 }
 
+
+void Fluid2DCPU::jacobi(int b, float* aux, float* x, float* x0, float a, float c) {
+	int i, j, k;
+	float invC = 1.f / c;
+	for (k = 0; k < m_parameters.iterations; k++) {
+		for (i = 1; i <= dim; i++) {
+			for (j = 1; j <= dim; j++) {
+				aux[index(i, j)] =
+					(x0[index(i, j)] +
+					a * (x[index(i - 1, j)] +
+					x[index(i + 1, j)] +
+					x[index(i, j - 1)] +
+					x[index(i, j + 1)])) * invC;
+			}
+		}
+		set_bnd(b, x);
+	}
+	for (int i = 0; i < dim2; i++) {
+		x[i] = aux[i];
+	}
+}
+
 void Fluid2DCPU::gaussSeidel(int b, float* x, float* x0, float a, float c)
 {
 	int i, j, k;
@@ -97,8 +121,8 @@ void Fluid2DCPU::gaussSeidel(int b, float* x, float* x0, float a, float c)
 float Fluid2DCPU::curl(int i, int j)
 {
 	float h = 1.0f / dim;
-	float du_dy = (u[index(i, j + 1)] - u[index(i, j - 1)]) /h * 0.5f;
-	float dv_dx = (v[index(i + 1, j)] - v[index(i - 1, j)]) /h * 0.5f;
+	float du_dy = (u[index(i, j + 1)] - u[index(i, j - 1)]) * 0.5f;
+	float dv_dx = (v[index(i + 1, j)] - v[index(i - 1, j)]) * 0.5f;
 
 	return dv_dx - du_dy;
 }
@@ -114,7 +138,7 @@ void Fluid2DCPU::vort_conf(float *u, float *v, float vort_str, float dt)
 	{
 		int x = i % (dim + 2);
 		int y = i / (dim + 2);
-		if (x<1 || x>dim || y<1 || y>dim) {}
+		if (x<1 || x>dim+1 || y<1 || y>dim+1) {}
 		else{
 			m_curl[i] = curl(x, y);
 		}
@@ -131,8 +155,8 @@ void Fluid2DCPU::vort_conf(float *u, float *v, float vort_str, float dt)
 			float omegaR = m_curl[index(i + 1, j)];
 			float omegaL = m_curl[index(i - 1, j)];
 
-			float dw_dx = ((omegaR - omegaL) * 0.5f) /h;
-			float dw_dy = ((omegaT - omegaB) * 0.5f) /h;
+			float dw_dx = ((omegaR - omegaL) * 0.5f);
+			float dw_dy = ((omegaT - omegaB) * 0.5f);
 
 
 			// Calculate vector length. (|n|)
@@ -216,7 +240,8 @@ void Fluid2DCPU::project(float *u, float *v, float *p, float *div)
 	h = 1.0f / dim;
 	for (i = 1; i <= dim; i++) {
 		for (j = 1; j <= dim; j++) {
-			div[index(i, j)] = -0.5*h*(u[index(i + 1, j)] - u[index(i - 1, j)] + v[index(i, j + 1)] - v[index(i, j - 1)]);
+			div[index(i, j)] = -0.5*h*(u[index(i + 1, j)] - u[index(i - 1, j)] 
+				+ v[index(i, j + 1)] - v[index(i, j - 1)]);
 
 			p[index(i, j)] = 0;
 		}
@@ -236,12 +261,13 @@ void Fluid2DCPU::project(float *u, float *v, float *p, float *div)
 	}
 	set_bnd(1, u);
 	set_bnd(2, v);
-
 }
 
 void Fluid2DCPU::dens_step(float *x, float *x0, float *u, float *v, float diff, float dt)
 {
-	addSource(x, x0, dt); 
+	//addSource(x, x0, dt); 
+	
+	// Add Constant Density Source
 	x[index(DIM / 2.f, DIM - 10.f)] += 100.f *dt;
 	x[index((DIM / 2.f) - 1.f, DIM - 10.f)] += 100.f *dt;
 	x[index((DIM / 2.f) + 1.f, DIM - 10.f)] += 100.f * dt;
@@ -291,17 +317,16 @@ void Fluid2DCPU::step()
 	if (m_parameters.dt > 0.f) {
 		vel_step(u, v, u_prev, v_prev, m_parameters.viscosity, m_parameters.kappa, m_parameters.sigma, m_parameters.dt);
 		dens_step(dens, dens_prev, u, v, m_parameters.diffusion, m_parameters.dt);
+		UpdateTexture();
 	}
 
-	UpdateTexture();
-
-	// Reset for next step
-	for (unsigned int i = 0; i < dim2; i++)
-	{
-		dens_prev[i] = 0.f;
-		u_prev[i] = 0.f;
-		v_prev[i] = 0.f;
-	}
+	//// Reset for next step
+	//for (unsigned int i = 0; i < dim2; i++)
+	//{
+	//	dens_prev[i] = 0.f;
+	//	u_prev[i] = 0.f;
+	//	v_prev[i] = 0.f;
+	//}
 }
 
 void Fluid2DCPU::UpdateTexture()
