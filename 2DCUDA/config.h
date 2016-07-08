@@ -1,9 +1,9 @@
 #define WIDTH 512 // Window width
 #define HEIGHT 512 // Window height
-#define DIM 64 // Grid Dimension
+#define DIM 512 // Grid Dimension
 #define DS (DIM * DIM)
 
-#define THREADS 32
+#define THREADS 256
 #define BLOCKS (DS/THREADS)
 
 
