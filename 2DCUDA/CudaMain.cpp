@@ -245,6 +245,7 @@ void HandleInput()
 		}
 	}
 
+	// Density Source on mouse pointer
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)){
 		s_d_i = (sf::Mouse::getPosition(*app_window).x / static_cast<float>(WIDTH)) * DIM;
 		s_d_j = (sf::Mouse::getPosition(*app_window).y / static_cast<float>(HEIGHT)) * DIM;
@@ -330,11 +331,11 @@ bool InitGL(int width, int height) {
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
 	glGenTextures(1, &tex);
-	glBindTexture(GL_TEXTURE_2D, tex);/*
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);*/
+	glBindTexture(GL_TEXTURE_2D, tex);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,
 		GL_UNSIGNED_BYTE, h_textureBufferData);

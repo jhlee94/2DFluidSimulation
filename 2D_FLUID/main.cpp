@@ -52,7 +52,6 @@ int main()
 	//app_window.setVerticalSyncEnabled(true);
 
 	// Init
-
 	Init();
 	app_window.setActive();
 	InitGL();
@@ -150,9 +149,8 @@ void Display(sf::RenderWindow &window)
 	//glVertex2i(GRID_WIDTH+1, GRID_HEIGHT+1);
 	//glVertex2i(-1, GRID_HEIGHT+1);
 	//glEnd();
-	
-	//// Grid Lines 
 	//glPopMatrix();
+	
 
 	
 
@@ -170,7 +168,10 @@ void Display(sf::RenderWindow &window)
 	panel->Display(window);
 	window.popGLStates();
 
+	// Grid Lines 
 	DrawGrid(fluid_solver->m_parameters.grid);
+	
+	// Vector Field Lines
 	DrawVectorField(fluid_solver->m_parameters.velocity);
 	// Finally, Display all
 	window.display();

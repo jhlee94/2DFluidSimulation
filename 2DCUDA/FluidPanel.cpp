@@ -19,7 +19,7 @@ void FluidPanel::Initialise()
 	m_parameters.vorticity = false;
 	m_parameters.buoyancy = true;
 	m_parameters.grid = false;
-	m_parameters.isMaccormack = true;
+	m_parameters.isMaccormack = false;
 	// Define GUI
 	auto viscosity_scale = sfg::Scale::Create(0.f, 0.005f, .0001f, sfg::Scale::Orientation::HORIZONTAL);
 	auto diffusion_scale = sfg::Scale::Create(0.f, 0.005f, .0001f, sfg::Scale::Orientation::HORIZONTAL);

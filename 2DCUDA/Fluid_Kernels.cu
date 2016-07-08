@@ -100,6 +100,7 @@ __global__ void addConstantSource_K(int size, float* x, int i, int j, float valu
 	x[index(i - 2, j)] += value *dt;
 }
 
+// Semi-Lagranian Advection
 __global__ void advect_K(int size, float *d, float *d0, float *u, float *v, float dt, bool isBackward) {
 	int gtidx = threadIdx.x + blockIdx.x * blockDim.x;
 	int i = gtidx % size;
